@@ -84,7 +84,7 @@ fn draw_header(frame: &mut Frame, area: Rect, app: &App) {
     frame.render_widget(volume, header_chunks[2]);
 }
 
-fn draw_synth_controls(frame: &mut Frame, area: Rect, _app: &App) {
+fn draw_synth_controls(frame: &mut Frame, area: Rect, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
@@ -94,15 +94,24 @@ fn draw_synth_controls(frame: &mut Frame, area: Rect, _app: &App) {
         ])
         .split(area);
 
-    // Oscillator section
+    // Oscillator section - show actual values from app
+    let waveform = app.waveform();
+    let detune = app.detune();
+    let detune_str = if detune == 0.0 {
+        "0".to_string()
+    } else {
+        format!("{:+.0}", detune)
+    };
+
     let osc_text = vec![
         Line::from(vec![
             Span::styled(" Wave:   ", Style::default().fg(Color::DarkGray)),
-            Span::styled("Sine", Style::default().fg(Color::Green)),
+            Span::styled(waveform.name(), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::styled(" (Tab)", Style::default().fg(Color::DarkGray)),
         ]),
         Line::from(vec![
             Span::styled(" Detune: ", Style::default().fg(Color::DarkGray)),
-            Span::styled("0 cents", Style::default().fg(Color::White)),
+            Span::styled(format!("{} cents", detune_str), Style::default().fg(Color::White)),
         ]),
         Line::from(""),
         Line::from(vec![
@@ -276,7 +285,9 @@ fn draw_footer(frame: &mut Frame, area: Rect, app: &App) {
         Span::styled("↑↓", Style::default().fg(Color::Yellow)),
         Span::styled(" Vol  ", Style::default().fg(Color::DarkGray)),
         Span::styled("←→", Style::default().fg(Color::Yellow)),
-        Span::styled(" Octave", Style::default().fg(Color::DarkGray)),
+        Span::styled(" Oct  ", Style::default().fg(Color::DarkGray)),
+        Span::styled("Tab", Style::default().fg(Color::Yellow)),
+        Span::styled(" Wave", Style::default().fg(Color::DarkGray)),
     ]))
     .block(
         Block::default()
