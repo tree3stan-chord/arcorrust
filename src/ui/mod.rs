@@ -2,7 +2,7 @@
 
 pub mod widgets;
 
-use crate::app::{App, LayoutMode};
+use crate::app::{App, LayoutMode, VizMode};
 use crate::input::keyboard::note_name;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -11,7 +11,7 @@ use ratatui::{
     widgets::{Block, Borders, Gauge, Paragraph},
     Frame,
 };
-use widgets::PianoKeyboard;
+use widgets::{PianoKeyboard, Visualizer};
 
 /// Draw the main UI
 pub fn draw(frame: &mut Frame, app: &App) {
@@ -330,16 +330,34 @@ fn draw_sidebar(frame: &mut Frame, area: Rect, app: &App) {
 fn draw_keyboard_area(frame: &mut Frame, area: Rect, app: &App) {
     let held_notes = app.held_notes();
     let octave = app.octave();
+    let viz_mode = app.viz_mode();
 
-    // Create the keyboard block
-    let block = Block::default()
+    // Split area for keyboard and visualizer
+    let has_viz = viz_mode != VizMode::Off;
+    let main_chunks = if has_viz {
+        Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Min(12),     // Keyboard area
+                Constraint::Length(10),  // Visualizer
+            ])
+            .split(area)
+    } else {
+        Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(1)])
+            .split(area)
+    };
+
+    // Draw keyboard section
+    let keyboard_block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::DarkGray))
         .title(" Keyboard ")
         .title_style(Style::default().fg(Color::White));
 
-    let inner = block.inner(area);
-    frame.render_widget(block, area);
+    let inner = keyboard_block.inner(main_chunks[0]);
+    frame.render_widget(keyboard_block, main_chunks[0]);
 
     // Split inner area: info bar, keyboard, key hints
     let chunks = Layout::default()
@@ -412,6 +430,21 @@ fn draw_keyboard_area(frame: &mut Frame, area: Rect, app: &App) {
         ]),
     ]);
     frame.render_widget(hints, chunks[2]);
+
+    // Draw visualizer if enabled
+    if has_viz {
+        let samples = app.get_viz_samples();
+        let sample_rate = app.sample_rate();
+        let viz_title = format!(" {} ", viz_mode.name());
+        let visualizer = Visualizer::new(&samples, sample_rate, viz_mode).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::DarkGray))
+                .title(viz_title)
+                .title_style(Style::default().fg(Color::Cyan)),
+        );
+        frame.render_widget(visualizer, main_chunks[1]);
+    }
 }
 
 fn draw_footer(frame: &mut Frame, area: Rect, app: &App) {
@@ -425,6 +458,7 @@ fn draw_footer(frame: &mut Frame, area: Rect, app: &App) {
 
     // Controls help
     let layout_name = app.layout_mode().name();
+    let viz_name = app.viz_mode().name();
     let controls = Paragraph::new(Line::from(vec![
         Span::styled(" Esc", Style::default().fg(Color::Yellow)),
         Span::styled(" quit  ", Style::default().fg(Color::DarkGray)),
@@ -432,8 +466,8 @@ fn draw_footer(frame: &mut Frame, area: Rect, app: &App) {
         Span::styled(" panic  ", Style::default().fg(Color::DarkGray)),
         Span::styled("Ins", Style::default().fg(Color::Yellow)),
         Span::styled(format!(" {} ", layout_name), Style::default().fg(Color::Cyan)),
-        Span::styled("F1", Style::default().fg(Color::Yellow)),
-        Span::styled(" rec  ", Style::default().fg(Color::DarkGray)),
+        Span::styled("Home", Style::default().fg(Color::Yellow)),
+        Span::styled(format!(" {} ", viz_name), Style::default().fg(Color::Magenta)),
         Span::styled("PgUp/Dn", Style::default().fg(Color::Yellow)),
         Span::styled(" preset", Style::default().fg(Color::DarkGray)),
     ]))

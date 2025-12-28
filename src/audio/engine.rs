@@ -118,6 +118,12 @@ struct SharedState {
     recording_enabled: bool,
     /// Maximum recording samples (10 minutes)
     recording_max_samples: usize,
+    /// Visualization ring buffer (always captures recent samples for display)
+    viz_buffer: Vec<f32>,
+    /// Write position in visualization buffer
+    viz_write_pos: usize,
+    /// Size of visualization buffer (power of 2 for FFT)
+    viz_buffer_size: usize,
 }
 
 impl SharedState {
@@ -149,6 +155,10 @@ impl SharedState {
             recording_buffer: Vec::new(),
             recording_enabled: false,
             recording_max_samples: (sample_rate as usize) * 60 * 10 * 2,
+            // Visualization buffer - 2048 samples (mono, ~46ms at 44.1kHz)
+            viz_buffer: vec![0.0; 2048],
+            viz_write_pos: 0,
+            viz_buffer_size: 2048,
         }
     }
 }
@@ -362,6 +372,12 @@ impl AudioEngine {
                 state.recording_buffer.push(sample);
                 state.recording_buffer.push(sample);
             }
+
+            // Write to visualization ring buffer (always active)
+            let viz_pos = state.viz_write_pos;
+            let viz_size = state.viz_buffer_size;
+            state.viz_buffer[viz_pos] = sample;
+            state.viz_write_pos = (viz_pos + 1) % viz_size;
 
             voice_count_out.store(active_count, Ordering::Relaxed);
         }
@@ -960,5 +976,25 @@ impl AudioEngine {
     /// Stop the audio engine
     pub fn stop(&mut self) {
         self.panic();
+    }
+
+    // === Visualization ===
+
+    /// Get a copy of the visualization buffer (ordered from oldest to newest)
+    pub fn get_viz_samples(&self) -> Vec<f32> {
+        let state = self.state.read();
+        let pos = state.viz_write_pos;
+        let size = state.viz_buffer_size;
+
+        // Reorder ring buffer: oldest samples first
+        let mut result = Vec::with_capacity(size);
+        result.extend_from_slice(&state.viz_buffer[pos..]);
+        result.extend_from_slice(&state.viz_buffer[..pos]);
+        result
+    }
+
+    /// Get visualization buffer size
+    pub fn viz_buffer_size(&self) -> usize {
+        self.state.read().viz_buffer_size
     }
 }

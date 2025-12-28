@@ -37,6 +37,40 @@ impl LayoutMode {
     }
 }
 
+/// Visualization mode for audio display
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum VizMode {
+    /// No visualization
+    Off,
+    /// Waveform oscilloscope view
+    Waveform,
+    /// Frequency spectrum analyzer
+    Spectrum,
+    /// Both waveform and spectrum
+    #[default]
+    Combined,
+}
+
+impl VizMode {
+    pub fn next(&self) -> Self {
+        match self {
+            VizMode::Off => VizMode::Waveform,
+            VizMode::Waveform => VizMode::Spectrum,
+            VizMode::Spectrum => VizMode::Combined,
+            VizMode::Combined => VizMode::Off,
+        }
+    }
+
+    pub fn name(&self) -> &'static str {
+        match self {
+            VizMode::Off => "Off",
+            VizMode::Waveform => "Wave",
+            VizMode::Spectrum => "Spectrum",
+            VizMode::Combined => "Both",
+        }
+    }
+}
+
 /// Main application state
 pub struct App {
     /// Audio engine for sound synthesis
@@ -59,6 +93,8 @@ pub struct App {
     preset_modified: bool,
     /// UI layout mode
     layout_mode: LayoutMode,
+    /// Visualization mode
+    viz_mode: VizMode,
 }
 
 impl App {
@@ -78,6 +114,7 @@ impl App {
             cpu_usage: 0.0,
             preset_modified: false,
             layout_mode: LayoutMode::default(),
+            viz_mode: VizMode::default(),
         };
 
         // Load first preset if available
@@ -532,5 +569,27 @@ impl App {
     /// Toggle between layout modes
     pub fn toggle_layout(&mut self) {
         self.layout_mode = self.layout_mode.toggle();
+    }
+
+    // === Visualization controls ===
+
+    /// Get current visualization mode
+    pub fn viz_mode(&self) -> VizMode {
+        self.viz_mode
+    }
+
+    /// Cycle to next visualization mode
+    pub fn next_viz_mode(&mut self) {
+        self.viz_mode = self.viz_mode.next();
+    }
+
+    /// Get visualization samples from audio engine
+    pub fn get_viz_samples(&self) -> Vec<f32> {
+        self.audio_engine.get_viz_samples()
+    }
+
+    /// Get sample rate for spectrum calculations
+    pub fn sample_rate(&self) -> f32 {
+        self.audio_engine.sample_rate()
     }
 }
