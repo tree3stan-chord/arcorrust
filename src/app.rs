@@ -11,6 +11,32 @@ use std::time::Instant;
 /// How long to hold a note before auto-release (for terminals without key release support)
 const NOTE_AUTO_RELEASE_MS: u128 = 200;
 
+/// UI layout mode
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LayoutMode {
+    /// Sidebar layout: controls on left, keyboard on right
+    #[default]
+    Sidebar,
+    /// Wide layout: full-width panels stacked vertically
+    Wide,
+}
+
+impl LayoutMode {
+    pub fn toggle(&self) -> Self {
+        match self {
+            LayoutMode::Sidebar => LayoutMode::Wide,
+            LayoutMode::Wide => LayoutMode::Sidebar,
+        }
+    }
+
+    pub fn name(&self) -> &'static str {
+        match self {
+            LayoutMode::Sidebar => "Sidebar",
+            LayoutMode::Wide => "Wide",
+        }
+    }
+}
+
 /// Main application state
 pub struct App {
     /// Audio engine for sound synthesis
@@ -31,6 +57,8 @@ pub struct App {
     cpu_usage: f32,
     /// Whether preset has been modified since loading
     preset_modified: bool,
+    /// UI layout mode
+    layout_mode: LayoutMode,
 }
 
 impl App {
@@ -49,6 +77,7 @@ impl App {
             voice_count: 0,
             cpu_usage: 0.0,
             preset_modified: false,
+            layout_mode: LayoutMode::default(),
         };
 
         // Load first preset if available
@@ -491,5 +520,17 @@ impl App {
     /// Get recording duration in seconds
     pub fn recording_duration(&self) -> f32 {
         self.audio_engine.recording_duration()
+    }
+
+    // === Layout controls ===
+
+    /// Get current layout mode
+    pub fn layout_mode(&self) -> LayoutMode {
+        self.layout_mode
+    }
+
+    /// Toggle between layout modes
+    pub fn toggle_layout(&mut self) {
+        self.layout_mode = self.layout_mode.toggle();
     }
 }

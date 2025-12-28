@@ -166,6 +166,10 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App)
                         KeyCode::F(12) => {
                             app.toggle_distortion();
                         }
+                        // Insert toggles layout mode
+                        KeyCode::Insert => {
+                            app.toggle_layout();
+                        }
                         // All other characters go to the musical keyboard
                         KeyCode::Char(c) => {
                             if let Some(note) = input::keyboard::char_to_note(c, app.octave()) {
