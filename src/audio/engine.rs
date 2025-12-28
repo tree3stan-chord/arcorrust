@@ -2,6 +2,8 @@
 
 use super::effects::EffectsChain;
 use super::filter::{calculate_filter_coeffs, BiquadFilter, BiquadState, FilterType};
+use super::lfo::{LFODestination, LFOWaveform, LFO};
+use super::noise::{NoiseGenerator, NoiseType};
 use super::oscillator::{self, Waveform};
 use anyhow::{Context, Result};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -11,6 +13,38 @@ use std::sync::Arc;
 
 /// Maximum number of simultaneous voices
 const MAX_VOICES: usize = 20;
+
+/// Portamento mode
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PortamentoMode {
+    /// Portamento disabled
+    #[default]
+    Off,
+    /// Always glide between notes
+    Always,
+    /// Only glide when notes overlap (legato playing)
+    Legato,
+}
+
+impl PortamentoMode {
+    /// Get display name
+    pub fn name(&self) -> &'static str {
+        match self {
+            PortamentoMode::Off => "Off",
+            PortamentoMode::Always => "Always",
+            PortamentoMode::Legato => "Legato",
+        }
+    }
+
+    /// Cycle to next mode
+    pub fn next(&self) -> Self {
+        match self {
+            PortamentoMode::Off => PortamentoMode::Always,
+            PortamentoMode::Always => PortamentoMode::Legato,
+            PortamentoMode::Legato => PortamentoMode::Off,
+        }
+    }
+}
 
 /// A single synthesizer voice
 #[derive(Clone)]
@@ -35,6 +69,10 @@ struct Voice {
     active: bool,
     /// Filter state (per-voice for proper polyphony)
     filter_state: BiquadState,
+    /// Current frequency (for portamento glide)
+    current_freq: f32,
+    /// Target frequency (for portamento glide)
+    target_freq: f32,
 }
 
 impl Default for Voice {
@@ -50,6 +88,8 @@ impl Default for Voice {
             filter_envelope_level: 0.0,
             active: false,
             filter_state: BiquadState::default(),
+            current_freq: 440.0,
+            target_freq: 440.0,
         }
     }
 }
@@ -124,6 +164,24 @@ struct SharedState {
     viz_write_pos: usize,
     /// Size of visualization buffer (power of 2 for FFT)
     viz_buffer_size: usize,
+    /// LFO for modulation
+    lfo: LFO,
+    /// Pulse width for PWM (0.05 - 0.95, 0.5 = square)
+    pulse_width: f32,
+    /// Noise generator
+    noise: NoiseGenerator,
+    /// Portamento time in milliseconds (0 = instant, max 2000ms)
+    portamento_time: f32,
+    /// Portamento mode (Off, Always, Legato)
+    portamento_mode: PortamentoMode,
+    /// Track if any notes are currently held (for legato detection)
+    notes_held: usize,
+    /// FM synthesis enabled
+    fm_enabled: bool,
+    /// FM modulation amount (0.0 - 2.0, in radians of phase modulation)
+    fm_amount: f32,
+    /// FM ratio (modulator frequency = carrier frequency * ratio)
+    fm_ratio: f32,
 }
 
 impl SharedState {
@@ -159,6 +217,20 @@ impl SharedState {
             viz_buffer: vec![0.0; 2048],
             viz_write_pos: 0,
             viz_buffer_size: 2048,
+            // LFO
+            lfo: LFO::new(),
+            // PWM
+            pulse_width: 0.5, // Default to square wave
+            // Noise
+            noise: NoiseGenerator::new(),
+            // Portamento
+            portamento_time: 100.0, // 100ms default glide time
+            portamento_mode: PortamentoMode::Off,
+            notes_held: 0,
+            // FM Synthesis
+            fm_enabled: false,
+            fm_amount: 0.5,  // Moderate modulation depth
+            fm_ratio: 2.0,   // Classic 2:1 ratio (octave up modulator)
         }
     }
 }
@@ -271,8 +343,59 @@ impl AudioEngine {
             sample_rate,
         };
 
+        // LFO modulation settings (extract for use in voice loop)
+        let lfo_enabled = state.lfo.enabled;
+        let lfo_has_pitch = state.lfo.has_destination(LFODestination::Pitch);
+        let lfo_has_filter = state.lfo.has_destination(LFODestination::FilterCutoff);
+        let lfo_has_volume = state.lfo.has_destination(LFODestination::Volume);
+        let lfo_has_osc2_pitch = state.lfo.has_destination(LFODestination::Osc2Pitch);
+        let lfo_has_pwm = state.lfo.has_destination(LFODestination::PulseWidth);
+
+        // PWM settings
+        let base_pulse_width = state.pulse_width;
+
+        // Portamento settings
+        let portamento_time = state.portamento_time;
+        let portamento_mode = state.portamento_mode;
+        // Calculate glide rate: how much to move toward target per sample
+        // Use exponential smoothing for musical pitch glide
+        let portamento_rate = if portamento_time > 0.0 {
+            // Time constant: 63% of glide in portamento_time ms
+            1.0 - (-1.0 / (portamento_time * 0.001 * sample_rate)).exp()
+        } else {
+            1.0 // Instant
+        };
+
+        // FM synthesis settings
+        let fm_enabled = state.fm_enabled;
+        let fm_amount = state.fm_amount;
+        let fm_ratio = state.fm_ratio;
+
         // Process each sample
         for frame in data.chunks_mut(channels) {
+            // Tick the LFO once per sample
+            let lfo_value = state.lfo.tick(sample_rate);
+
+            // Calculate modulated pulse width for PWM
+            let modulated_pulse_width = if lfo_enabled && lfo_has_pwm {
+                // LFO modulates pulse width by +/- 0.4 at full depth
+                (base_pulse_width + lfo_value * 0.4).clamp(0.05, 0.95)
+            } else {
+                base_pulse_width
+            };
+
+            // Convert Square waveforms to Pulse with modulated width
+            let effective_osc1_waveform = if osc1_waveform == Waveform::Square {
+                Waveform::Pulse { width: modulated_pulse_width }
+            } else {
+                osc1_waveform
+            };
+            let effective_osc2_waveform = if osc2_waveform == Waveform::Square {
+                Waveform::Pulse { width: modulated_pulse_width }
+            } else {
+                osc2_waveform
+            };
+
             let mut sample = 0.0f32;
             let mut active_count = 0usize;
 
@@ -284,38 +407,89 @@ impl AudioEngine {
 
                 active_count += 1;
 
-                // Base frequency from MIDI note
-                let base_freq = 440.0 * 2.0f32.powf((voice.note as f32 - 69.0) / 12.0);
-
-                // Oscillator 1
-                let osc1_detune_factor = 2.0f32.powf(osc1_detune / 1200.0);
-                let freq1 = base_freq * osc1_detune_factor;
-                let phase_inc1 = freq1 / sample_rate;
-                let osc1_sample = oscillator::generate_bandlimited(osc1_waveform, voice.phase1, phase_inc1);
-
-                voice.phase1 += phase_inc1;
-                if voice.phase1 >= 1.0 {
-                    voice.phase1 -= 1.0;
+                // Apply portamento: glide current_freq toward target_freq
+                if portamento_mode != PortamentoMode::Off {
+                    // Exponential glide in frequency domain (sounds musical)
+                    voice.current_freq += (voice.target_freq - voice.current_freq) * portamento_rate;
+                } else {
+                    // Portamento off: snap to target immediately
+                    voice.current_freq = voice.target_freq;
                 }
 
-                // Mix oscillators
-                let osc_sample = if osc2_enabled {
-                    // Oscillator 2 with pitch offset and detune
-                    let osc2_pitch_factor = 2.0f32.powf(osc2_pitch as f32 / 12.0);
-                    let osc2_detune_factor = 2.0f32.powf(osc2_detune / 1200.0);
-                    let freq2 = base_freq * osc2_pitch_factor * osc2_detune_factor;
-                    let phase_inc2 = freq2 / sample_rate;
-                    let osc2_sample = oscillator::generate_bandlimited(osc2_waveform, voice.phase2, phase_inc2);
+                // Use current frequency (post-portamento)
+                let base_freq = voice.current_freq;
 
-                    voice.phase2 += phase_inc2;
+                // Apply LFO pitch modulation (vibrato) - modulate up to 1 semitone
+                let lfo_pitch_mod = if lfo_enabled && lfo_has_pitch {
+                    2.0_f32.powf(lfo_value * 1.0 / 12.0) // 1 semitone range
+                } else {
+                    1.0
+                };
+
+                // Oscillator 1 base frequency and detune
+                let osc1_detune_factor = 2.0f32.powf(osc1_detune / 1200.0);
+                let freq1 = base_freq * osc1_detune_factor * lfo_pitch_mod;
+                let phase_inc1 = freq1 / sample_rate;
+
+                // Mix oscillators or apply FM synthesis
+                let osc_sample = if osc2_enabled && fm_enabled {
+                    // FM Synthesis mode: OSC2 modulates OSC1's phase
+                    // Modulator frequency = carrier frequency * ratio
+                    let mod_freq = freq1 * fm_ratio;
+                    let mod_phase_inc = mod_freq / sample_rate;
+
+                    // Generate modulator signal (sine wave for classic FM)
+                    let modulator = (voice.phase2 * std::f32::consts::TAU).sin();
+
+                    // Phase modulate the carrier
+                    let fm_phase = voice.phase1 + modulator * fm_amount;
+                    let osc1_sample = oscillator::generate_bandlimited(effective_osc1_waveform, fm_phase.rem_euclid(1.0), phase_inc1);
+
+                    // Advance phases
+                    voice.phase1 += phase_inc1;
+                    if voice.phase1 >= 1.0 {
+                        voice.phase1 -= 1.0;
+                    }
+                    voice.phase2 += mod_phase_inc;
                     if voice.phase2 >= 1.0 {
                         voice.phase2 -= 1.0;
                     }
 
-                    // Mix: 0.0 = all osc1, 1.0 = all osc2
-                    osc1_sample * (1.0 - osc_mix) + osc2_sample * osc_mix
-                } else {
+                    // In FM mode, only output the carrier (modulated OSC1)
                     osc1_sample
+                } else {
+                    // Normal mode: mix OSC1 and OSC2
+                    let osc1_sample = oscillator::generate_bandlimited(effective_osc1_waveform, voice.phase1, phase_inc1);
+
+                    voice.phase1 += phase_inc1;
+                    if voice.phase1 >= 1.0 {
+                        voice.phase1 -= 1.0;
+                    }
+
+                    if osc2_enabled {
+                        // Oscillator 2 with pitch offset and detune
+                        let osc2_pitch_factor = 2.0f32.powf(osc2_pitch as f32 / 12.0);
+                        let osc2_detune_factor = 2.0f32.powf(osc2_detune / 1200.0);
+                        // Apply LFO to osc2 pitch if destination is enabled
+                        let lfo_osc2_pitch_mod = if lfo_enabled && lfo_has_osc2_pitch {
+                            2.0_f32.powf(lfo_value * 1.0 / 12.0) // 1 semitone range
+                        } else {
+                            1.0
+                        };
+                        let freq2 = base_freq * osc2_pitch_factor * osc2_detune_factor * lfo_osc2_pitch_mod;
+                        let phase_inc2 = freq2 / sample_rate;
+                        let osc2_sample = oscillator::generate_bandlimited(effective_osc2_waveform, voice.phase2, phase_inc2);
+
+                        voice.phase2 += phase_inc2;
+                        if voice.phase2 >= 1.0 {
+                            voice.phase2 -= 1.0;
+                        }
+
+                        // Mix: 0.0 = all osc1, 1.0 = all osc2
+                        osc1_sample * (1.0 - osc_mix) + osc2_sample * osc_mix
+                    } else {
+                        osc1_sample
+                    }
                 };
 
                 // Process filter envelope and apply filter
@@ -326,7 +500,15 @@ impl AudioEngine {
                 // filter_env_amount controls how many octaves the envelope sweeps
                 let octave_range = 4.0; // Sweep up to 4 octaves
                 let env_mod = filter_env_level * filter_env_amount * octave_range;
-                let modulated_cutoff = filter_base_cutoff * 2.0f32.powf(env_mod);
+
+                // Apply LFO to filter cutoff (wah/wobble effect) - modulate up to 2 octaves
+                let lfo_filter_mod = if lfo_enabled && lfo_has_filter {
+                    2.0_f32.powf(lfo_value * 2.0) // 2 octave range
+                } else {
+                    1.0
+                };
+
+                let modulated_cutoff = filter_base_cutoff * 2.0f32.powf(env_mod) * lfo_filter_mod;
 
                 // Calculate filter coefficients for modulated cutoff
                 let filter_coeffs = if filter_enabled && filter_env_amount > 0.0 {
@@ -349,10 +531,22 @@ impl AudioEngine {
                 // Process amplitude envelope
                 let env_level = Self::process_envelope(voice, &env_params);
 
+                // Apply LFO volume modulation (tremolo)
+                let lfo_volume_mod = if lfo_enabled && lfo_has_volume {
+                    // Map LFO (-1..1) to amplitude (0..1), with full depth going 0 to 1
+                    (lfo_value + 1.0) / 2.0
+                } else {
+                    1.0
+                };
+
                 // Add to mix with velocity scaling
                 let velocity_scale = voice.velocity as f32 / 127.0;
-                sample += filtered_sample * env_level * velocity_scale;
+                sample += filtered_sample * env_level * velocity_scale * lfo_volume_mod;
             }
+
+            // Mix in noise generator
+            let noise_sample = state.noise.tick();
+            sample += noise_sample;
 
             // Apply effects chain (distortion → delay → reverb)
             sample = state.effects.process(sample);
@@ -500,6 +694,36 @@ impl AudioEngine {
     pub fn note_on(&mut self, note: u8, velocity: u8) {
         let mut state = self.state.write();
 
+        // Calculate target frequency for the new note
+        let target_freq = 440.0 * 2.0f32.powf((note as f32 - 69.0) / 12.0);
+
+        // Determine if we should glide based on portamento mode
+        let should_glide = match state.portamento_mode {
+            PortamentoMode::Off => false,
+            PortamentoMode::Always => true,
+            PortamentoMode::Legato => state.notes_held > 0,
+        };
+
+        // Find the last played frequency for gliding (from most recently active voice)
+        let last_freq = if should_glide {
+            state
+                .voices
+                .iter()
+                .filter(|v| v.active)
+                .max_by(|a, b| {
+                    a.envelope_level
+                        .partial_cmp(&b.envelope_level)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+                .map(|v| v.current_freq)
+                .unwrap_or(target_freq)
+        } else {
+            target_freq
+        };
+
+        // Increment notes held counter
+        state.notes_held += 1;
+
         // Find an available voice or steal the oldest
         let voice_idx = state
             .voices
@@ -532,7 +756,17 @@ impl AudioEngine {
         voice.active = true;
         voice.filter_state.reset(); // Reset filter to prevent clicks
 
-        log::debug!("Note on: {} vel={} voice={}", note, velocity, voice_idx);
+        // Set up portamento
+        voice.target_freq = target_freq;
+        voice.current_freq = if should_glide { last_freq } else { target_freq };
+
+        log::debug!(
+            "Note on: {} vel={} voice={} glide={}",
+            note,
+            velocity,
+            voice_idx,
+            should_glide
+        );
     }
 
     /// Trigger a note off
@@ -547,6 +781,9 @@ impl AudioEngine {
                 log::debug!("Note off: {}", note);
             }
         }
+
+        // Decrement notes held counter (saturating to prevent underflow)
+        state.notes_held = state.notes_held.saturating_sub(1);
     }
 
     /// Stop all notes immediately
@@ -557,6 +794,7 @@ impl AudioEngine {
             voice.filter_envelope = EnvelopeState::Release;
             voice.active = false;
         }
+        state.notes_held = 0;
         log::info!("Panic: stopping all notes");
     }
 
@@ -938,6 +1176,272 @@ impl AudioEngine {
         self.state.read().effects.reverb.mix()
     }
 
+    // -- Bitcrusher --
+
+    /// Toggle bitcrusher
+    pub fn toggle_bitcrusher(&mut self) {
+        self.state.write().effects.bitcrusher.toggle();
+    }
+
+    /// Set bitcrusher enabled state
+    pub fn set_bitcrusher_enabled(&mut self, enabled: bool) {
+        self.state.write().effects.bitcrusher.set_enabled(enabled);
+    }
+
+    /// Check if bitcrusher is enabled
+    pub fn bitcrusher_enabled(&self) -> bool {
+        self.state.read().effects.bitcrusher.enabled()
+    }
+
+    /// Get bitcrusher bit depth
+    pub fn bitcrusher_bits(&self) -> u8 {
+        self.state.read().effects.bitcrusher.bit_depth()
+    }
+
+    /// Set bitcrusher bit depth
+    pub fn set_bitcrusher_bits(&mut self, bits: u8) {
+        self.state.write().effects.bitcrusher.set_bit_depth(bits);
+    }
+
+    /// Adjust bitcrusher bit depth
+    pub fn adjust_bitcrusher_bits(&mut self, delta: i8) {
+        self.state.write().effects.bitcrusher.adjust_bit_depth(delta);
+    }
+
+    /// Get bitcrusher sample rate divider
+    pub fn bitcrusher_rate_div(&self) -> u8 {
+        self.state.read().effects.bitcrusher.sample_rate_div()
+    }
+
+    /// Set bitcrusher sample rate divider
+    pub fn set_bitcrusher_rate_div(&mut self, div: u8) {
+        self.state.write().effects.bitcrusher.set_sample_rate_div(div);
+    }
+
+    /// Adjust bitcrusher sample rate divider
+    pub fn adjust_bitcrusher_rate_div(&mut self, delta: i8) {
+        self.state.write().effects.bitcrusher.adjust_sample_rate_div(delta);
+    }
+
+    /// Get bitcrusher mix
+    pub fn bitcrusher_mix(&self) -> f32 {
+        self.state.read().effects.bitcrusher.mix()
+    }
+
+    /// Set bitcrusher mix
+    pub fn set_bitcrusher_mix(&mut self, mix: f32) {
+        self.state.write().effects.bitcrusher.set_mix(mix);
+    }
+
+    // -- Chorus --
+
+    /// Toggle chorus
+    pub fn toggle_chorus(&mut self) {
+        self.state.write().effects.chorus.toggle();
+    }
+
+    /// Set chorus enabled state
+    pub fn set_chorus_enabled(&mut self, enabled: bool) {
+        self.state.write().effects.chorus.set_enabled(enabled);
+    }
+
+    /// Check if chorus is enabled
+    pub fn chorus_enabled(&self) -> bool {
+        self.state.read().effects.chorus.enabled()
+    }
+
+    /// Get chorus rate
+    pub fn chorus_rate(&self) -> f32 {
+        self.state.read().effects.chorus.rate()
+    }
+
+    /// Set chorus rate
+    pub fn set_chorus_rate(&mut self, rate: f32) {
+        self.state.write().effects.chorus.set_rate(rate);
+    }
+
+    /// Adjust chorus rate
+    pub fn adjust_chorus_rate(&mut self, delta: f32) {
+        let mut state = self.state.write();
+        let current = state.effects.chorus.rate();
+        state.effects.chorus.set_rate(current + delta);
+    }
+
+    /// Get chorus depth
+    pub fn chorus_depth(&self) -> f32 {
+        self.state.read().effects.chorus.depth()
+    }
+
+    /// Set chorus depth
+    pub fn set_chorus_depth(&mut self, depth: f32) {
+        self.state.write().effects.chorus.set_depth(depth);
+    }
+
+    /// Adjust chorus depth
+    pub fn adjust_chorus_depth(&mut self, delta: f32) {
+        let mut state = self.state.write();
+        let current = state.effects.chorus.depth();
+        state.effects.chorus.set_depth(current + delta);
+    }
+
+    /// Get chorus voices
+    pub fn chorus_voices(&self) -> u8 {
+        self.state.read().effects.chorus.voices()
+    }
+
+    /// Set chorus voices
+    pub fn set_chorus_voices(&mut self, voices: u8) {
+        self.state.write().effects.chorus.set_voices(voices);
+    }
+
+    /// Get chorus mix
+    pub fn chorus_mix(&self) -> f32 {
+        self.state.read().effects.chorus.mix()
+    }
+
+    /// Set chorus mix
+    pub fn set_chorus_mix(&mut self, mix: f32) {
+        self.state.write().effects.chorus.set_mix(mix);
+    }
+
+    // -- Phaser --
+
+    /// Toggle phaser
+    pub fn toggle_phaser(&mut self) {
+        self.state.write().effects.phaser.toggle();
+    }
+
+    /// Set phaser enabled state
+    pub fn set_phaser_enabled(&mut self, enabled: bool) {
+        self.state.write().effects.phaser.set_enabled(enabled);
+    }
+
+    /// Check if phaser is enabled
+    pub fn phaser_enabled(&self) -> bool {
+        self.state.read().effects.phaser.enabled()
+    }
+
+    /// Get phaser rate
+    pub fn phaser_rate(&self) -> f32 {
+        self.state.read().effects.phaser.rate()
+    }
+
+    /// Adjust phaser rate
+    pub fn adjust_phaser_rate(&mut self, delta: f32) {
+        let mut state = self.state.write();
+        let current = state.effects.phaser.rate();
+        state.effects.phaser.set_rate(current + delta);
+    }
+
+    /// Get phaser depth
+    pub fn phaser_depth(&self) -> f32 {
+        self.state.read().effects.phaser.depth()
+    }
+
+    /// Adjust phaser depth
+    pub fn adjust_phaser_depth(&mut self, delta: f32) {
+        let mut state = self.state.write();
+        let current = state.effects.phaser.depth();
+        state.effects.phaser.set_depth(current + delta);
+    }
+
+    /// Get phaser stages
+    pub fn phaser_stages(&self) -> u8 {
+        self.state.read().effects.phaser.stages()
+    }
+
+    // -- Ring Mod --
+
+    /// Toggle ring mod
+    pub fn toggle_ring_mod(&mut self) {
+        self.state.write().effects.ring_mod.toggle();
+    }
+
+    /// Set ring mod enabled state
+    pub fn set_ring_mod_enabled(&mut self, enabled: bool) {
+        self.state.write().effects.ring_mod.set_enabled(enabled);
+    }
+
+    /// Check if ring mod is enabled
+    pub fn ring_mod_enabled(&self) -> bool {
+        self.state.read().effects.ring_mod.enabled()
+    }
+
+    /// Get ring mod carrier frequency
+    pub fn ring_mod_freq(&self) -> f32 {
+        self.state.read().effects.ring_mod.carrier_freq()
+    }
+
+    /// Set ring mod carrier frequency
+    pub fn set_ring_mod_freq(&mut self, freq: f32) {
+        self.state.write().effects.ring_mod.set_carrier_freq(freq);
+    }
+
+    /// Adjust ring mod carrier frequency
+    pub fn adjust_ring_mod_freq(&mut self, delta: f32) {
+        self.state.write().effects.ring_mod.adjust_carrier_freq(delta);
+    }
+
+    /// Get ring mod mix
+    pub fn ring_mod_mix(&self) -> f32 {
+        self.state.read().effects.ring_mod.mix()
+    }
+
+    /// Set ring mod mix
+    pub fn set_ring_mod_mix(&mut self, mix: f32) {
+        self.state.write().effects.ring_mod.set_mix(mix);
+    }
+
+    // -- FM Synthesis --
+
+    /// Toggle FM synthesis
+    pub fn toggle_fm(&mut self) {
+        let mut state = self.state.write();
+        state.fm_enabled = !state.fm_enabled;
+    }
+
+    /// Set FM enabled state
+    pub fn set_fm_enabled(&mut self, enabled: bool) {
+        self.state.write().fm_enabled = enabled;
+    }
+
+    /// Check if FM is enabled
+    pub fn fm_enabled(&self) -> bool {
+        self.state.read().fm_enabled
+    }
+
+    /// Get FM amount (modulation depth)
+    pub fn fm_amount(&self) -> f32 {
+        self.state.read().fm_amount
+    }
+
+    /// Set FM amount
+    pub fn set_fm_amount(&mut self, amount: f32) {
+        self.state.write().fm_amount = amount.clamp(0.0, 2.0);
+    }
+
+    /// Adjust FM amount
+    pub fn adjust_fm_amount(&mut self, delta: f32) {
+        let mut state = self.state.write();
+        state.fm_amount = (state.fm_amount + delta).clamp(0.0, 2.0);
+    }
+
+    /// Get FM ratio (modulator/carrier frequency ratio)
+    pub fn fm_ratio(&self) -> f32 {
+        self.state.read().fm_ratio
+    }
+
+    /// Set FM ratio
+    pub fn set_fm_ratio(&mut self, ratio: f32) {
+        self.state.write().fm_ratio = ratio.clamp(0.5, 8.0);
+    }
+
+    /// Adjust FM ratio
+    pub fn adjust_fm_ratio(&mut self, delta: f32) {
+        let mut state = self.state.write();
+        state.fm_ratio = (state.fm_ratio + delta).clamp(0.5, 8.0);
+    }
+
     // === Recording controls ===
 
     /// Start recording
@@ -996,5 +1500,188 @@ impl AudioEngine {
     /// Get visualization buffer size
     pub fn viz_buffer_size(&self) -> usize {
         self.state.read().viz_buffer_size
+    }
+
+    // === LFO controls ===
+
+    /// Toggle LFO on/off
+    pub fn toggle_lfo(&mut self) {
+        let mut state = self.state.write();
+        state.lfo.enabled = !state.lfo.enabled;
+    }
+
+    /// Check if LFO is enabled
+    pub fn lfo_enabled(&self) -> bool {
+        self.state.read().lfo.enabled
+    }
+
+    /// Set LFO enabled state
+    pub fn set_lfo_enabled(&mut self, enabled: bool) {
+        self.state.write().lfo.enabled = enabled;
+    }
+
+    /// Get LFO rate
+    pub fn lfo_rate(&self) -> f32 {
+        self.state.read().lfo.rate
+    }
+
+    /// Set LFO rate
+    pub fn set_lfo_rate(&mut self, rate: f32) {
+        self.state.write().lfo.set_rate(rate);
+    }
+
+    /// Adjust LFO rate
+    pub fn adjust_lfo_rate(&mut self, delta: f32) {
+        self.state.write().lfo.adjust_rate(delta);
+    }
+
+    /// Get LFO depth
+    pub fn lfo_depth(&self) -> f32 {
+        self.state.read().lfo.depth
+    }
+
+    /// Set LFO depth
+    pub fn set_lfo_depth(&mut self, depth: f32) {
+        self.state.write().lfo.set_depth(depth);
+    }
+
+    /// Adjust LFO depth
+    pub fn adjust_lfo_depth(&mut self, delta: f32) {
+        self.state.write().lfo.adjust_depth(delta);
+    }
+
+    /// Get LFO waveform
+    pub fn lfo_waveform(&self) -> LFOWaveform {
+        self.state.read().lfo.waveform
+    }
+
+    /// Set LFO waveform
+    pub fn set_lfo_waveform(&mut self, waveform: LFOWaveform) {
+        self.state.write().lfo.waveform = waveform;
+    }
+
+    /// Cycle to next LFO waveform
+    pub fn next_lfo_waveform(&mut self) {
+        self.state.write().lfo.next_waveform();
+    }
+
+    /// Cycle to previous LFO waveform
+    pub fn prev_lfo_waveform(&mut self) {
+        self.state.write().lfo.prev_waveform();
+    }
+
+    /// Toggle LFO destination
+    pub fn toggle_lfo_destination(&mut self, dest: LFODestination) {
+        self.state.write().lfo.toggle_destination(dest);
+    }
+
+    /// Check if LFO destination is active
+    pub fn lfo_has_destination(&self, dest: LFODestination) -> bool {
+        self.state.read().lfo.has_destination(dest)
+    }
+
+    /// Get all active LFO destinations
+    pub fn lfo_destinations(&self) -> std::collections::HashSet<LFODestination> {
+        self.state.read().lfo.destinations.clone()
+    }
+
+    // === PWM controls ===
+
+    /// Get pulse width
+    pub fn pulse_width(&self) -> f32 {
+        self.state.read().pulse_width
+    }
+
+    /// Set pulse width (0.05 - 0.95)
+    pub fn set_pulse_width(&mut self, width: f32) {
+        self.state.write().pulse_width = width.clamp(0.05, 0.95);
+    }
+
+    /// Adjust pulse width
+    pub fn adjust_pulse_width(&mut self, delta: f32) {
+        let mut state = self.state.write();
+        state.pulse_width = (state.pulse_width + delta).clamp(0.05, 0.95);
+    }
+
+    // === Noise controls ===
+
+    /// Toggle noise on/off
+    pub fn toggle_noise(&mut self) {
+        let mut state = self.state.write();
+        state.noise.enabled = !state.noise.enabled;
+    }
+
+    /// Check if noise is enabled
+    pub fn noise_enabled(&self) -> bool {
+        self.state.read().noise.enabled
+    }
+
+    /// Set noise enabled
+    pub fn set_noise_enabled(&mut self, enabled: bool) {
+        self.state.write().noise.enabled = enabled;
+    }
+
+    /// Get noise level
+    pub fn noise_level(&self) -> f32 {
+        self.state.read().noise.level
+    }
+
+    /// Set noise level
+    pub fn set_noise_level(&mut self, level: f32) {
+        self.state.write().noise.set_level(level);
+    }
+
+    /// Adjust noise level
+    pub fn adjust_noise_level(&mut self, delta: f32) {
+        self.state.write().noise.adjust_level(delta);
+    }
+
+    /// Get noise type
+    pub fn noise_type(&self) -> NoiseType {
+        self.state.read().noise.noise_type
+    }
+
+    /// Set noise type
+    pub fn set_noise_type(&mut self, noise_type: NoiseType) {
+        self.state.write().noise.noise_type = noise_type;
+    }
+
+    /// Cycle to next noise type
+    pub fn next_noise_type(&mut self) {
+        self.state.write().noise.next_type();
+    }
+
+    // === Portamento controls ===
+
+    /// Get portamento time in milliseconds
+    pub fn portamento_time(&self) -> f32 {
+        self.state.read().portamento_time
+    }
+
+    /// Set portamento time in milliseconds (0-2000)
+    pub fn set_portamento_time(&mut self, time_ms: f32) {
+        self.state.write().portamento_time = time_ms.clamp(0.0, 2000.0);
+    }
+
+    /// Adjust portamento time
+    pub fn adjust_portamento_time(&mut self, delta: f32) {
+        let mut state = self.state.write();
+        state.portamento_time = (state.portamento_time + delta).clamp(0.0, 2000.0);
+    }
+
+    /// Get portamento mode
+    pub fn portamento_mode(&self) -> PortamentoMode {
+        self.state.read().portamento_mode
+    }
+
+    /// Set portamento mode
+    pub fn set_portamento_mode(&mut self, mode: PortamentoMode) {
+        self.state.write().portamento_mode = mode;
+    }
+
+    /// Cycle to next portamento mode
+    pub fn next_portamento_mode(&mut self) {
+        let mut state = self.state.write();
+        state.portamento_mode = state.portamento_mode.next();
     }
 }
