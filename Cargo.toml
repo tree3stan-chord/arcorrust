@@ -1,5 +1,5 @@
 [package]
-name = "arcorrust"
+name = "arco"
 version = "0.1.0"
 edition = "2021"
 description = "Terminal-based virtual instrument playground with real-time synthesis"
