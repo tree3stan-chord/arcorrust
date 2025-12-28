@@ -38,6 +38,7 @@ impl LFOWaveform {
     }
 
     /// Cycle to previous waveform
+    #[allow(dead_code)]
     pub fn prev(&self) -> Self {
         match self {
             LFOWaveform::Sine => LFOWaveform::SampleHold,
@@ -60,6 +61,7 @@ pub enum LFODestination {
     Pan,
 }
 
+#[allow(dead_code)]
 impl LFODestination {
     /// Get display name
     pub fn name(&self) -> &'static str {
@@ -184,6 +186,7 @@ impl LFO {
     }
 
     /// Get current LFO value without advancing (for UI display)
+    #[allow(dead_code)]
     pub fn current_value(&self) -> f32 {
         if !self.enabled {
             return 0.0;
@@ -213,6 +216,7 @@ impl LFO {
     }
 
     /// Reset the LFO phase
+    #[allow(dead_code)]
     pub fn reset(&mut self) {
         self.phase = 0.0;
         self.prev_phase = 0.0;
@@ -259,12 +263,14 @@ impl LFO {
     }
 
     /// Cycle to previous waveform
+    #[allow(dead_code)]
     pub fn prev_waveform(&mut self) {
         self.waveform = self.waveform.prev();
     }
 
     /// Calculate pitch modulation multiplier
     /// Returns a frequency multiplier (e.g., 1.0 for no change, 2.0 for octave up)
+    #[allow(dead_code)]
     pub fn pitch_mod(&self, lfo_value: f32, semitones: f32) -> f32 {
         if !self.enabled || !self.has_destination(LFODestination::Pitch) {
             return 1.0;
@@ -276,6 +282,7 @@ impl LFO {
 
     /// Calculate filter cutoff modulation multiplier
     /// Returns a frequency multiplier
+    #[allow(dead_code)]
     pub fn filter_mod(&self, lfo_value: f32, octaves: f32) -> f32 {
         if !self.enabled || !self.has_destination(LFODestination::FilterCutoff) {
             return 1.0;
@@ -285,6 +292,7 @@ impl LFO {
 
     /// Calculate volume modulation (tremolo)
     /// Returns amplitude multiplier (0.0 to 1.0)
+    #[allow(dead_code)]
     pub fn volume_mod(&self, lfo_value: f32) -> f32 {
         if !self.enabled || !self.has_destination(LFODestination::Volume) {
             return 1.0;
@@ -297,6 +305,7 @@ impl LFO {
 
     /// Calculate pan modulation
     /// Returns pan value (-1.0 left to 1.0 right)
+    #[allow(dead_code)]
     pub fn pan_mod(&self, lfo_value: f32) -> f32 {
         if !self.enabled || !self.has_destination(LFODestination::Pan) {
             return 0.0;
@@ -306,6 +315,7 @@ impl LFO {
 
     /// Calculate pulse width modulation offset
     /// Returns offset to add to base pulse width
+    #[allow(dead_code)]
     pub fn pwm_mod(&self, lfo_value: f32) -> f32 {
         if !self.enabled || !self.has_destination(LFODestination::PulseWidth) {
             return 0.0;
@@ -315,6 +325,7 @@ impl LFO {
     }
 
     /// Calculate oscillator 2 pitch modulation
+    #[allow(dead_code)]
     pub fn osc2_pitch_mod(&self, lfo_value: f32, semitones: f32) -> f32 {
         if !self.enabled || !self.has_destination(LFODestination::Osc2Pitch) {
             return 1.0;

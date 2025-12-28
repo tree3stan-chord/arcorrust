@@ -12,8 +12,6 @@ use std::collections::HashSet;
 const WHITE_KEY_WIDTH: u16 = 6;
 /// Height of a white key
 const WHITE_KEY_HEIGHT: u16 = 6;
-/// Height of a black key
-const BLACK_KEY_HEIGHT: u16 = 3;
 
 /// A visual piano keyboard widget
 pub struct PianoKeyboard<'a> {
@@ -42,11 +40,6 @@ impl<'a> PianoKeyboard<'a> {
     /// Get MIDI note for a given octave and note index (0-11)
     fn midi_note(octave: i32, note_in_octave: u8) -> u8 {
         ((octave + 1) * 12 + note_in_octave as i32).clamp(0, 127) as u8
-    }
-
-    /// Check if a note index is a black key
-    fn is_black_key(note: u8) -> bool {
-        matches!(note % 12, 1 | 3 | 6 | 8 | 10)
     }
 
     /// Get the QWERTY key label for a note
@@ -139,7 +132,7 @@ impl<'a> PianoKeyboard<'a> {
                     break;
                 }
 
-                let cell = buf.get_mut(cx, cy);
+                let cell = &mut buf[(cx, cy)];
 
                 if row == 0 {
                     // Top border
@@ -173,7 +166,7 @@ impl<'a> PianoKeyboard<'a> {
         let label_y = y + height - 3;
         let label_x = x + (WHITE_KEY_WIDTH / 2);
         if label_y < buf.area.bottom() && label_x < buf.area.right() {
-            let cell = buf.get_mut(label_x, label_y);
+            let cell = &mut buf[(label_x, label_y)];
             if !label.is_empty() {
                 cell.set_char(label.chars().next().unwrap())
                     .set_style(style.add_modifier(Modifier::BOLD));
@@ -185,7 +178,7 @@ impl<'a> PianoKeyboard<'a> {
         if note_y < buf.area.bottom() && note_name.len() == 1 {
             let note_x = x + (WHITE_KEY_WIDTH / 2);
             if note_x < buf.area.right() {
-                buf.get_mut(note_x, note_y)
+                buf[(note_x, note_y)]
                     .set_char(note_name.chars().next().unwrap())
                     .set_style(Style::default().fg(Color::DarkGray));
             }
@@ -197,7 +190,7 @@ impl<'a> PianoKeyboard<'a> {
             let oct_x = x + WHITE_KEY_WIDTH - 2;
             if oct_y < buf.area.bottom() && oct_x < buf.area.right() {
                 let oct_char = char::from_digit(octave_num as u32 % 10, 10).unwrap_or('?');
-                buf.get_mut(oct_x, oct_y)
+                buf[(oct_x, oct_y)]
                     .set_char(oct_char)
                     .set_style(Style::default().fg(Color::Blue));
             }
@@ -234,7 +227,7 @@ impl<'a> PianoKeyboard<'a> {
                     continue;
                 }
 
-                let cell = buf.get_mut(cx, cy);
+                let cell = &mut buf[(cx, cy)];
 
                 if row == 0 {
                     // Top border
@@ -268,7 +261,7 @@ impl<'a> PianoKeyboard<'a> {
         let label_y = y + height - 2;
         let label_x = x + 1;
         if label_y < buf.area.bottom() && label_x < buf.area.right() && !label.is_empty() {
-            buf.get_mut(label_x, label_y)
+            buf[(label_x, label_y)]
                 .set_char(label.chars().next().unwrap())
                 .set_style(style.add_modifier(Modifier::BOLD));
         }

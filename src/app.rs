@@ -335,6 +335,7 @@ impl App {
     }
 
     /// Cycle oscillator 1 to previous waveform
+    #[allow(dead_code)]
     pub fn prev_osc1_waveform(&mut self) {
         self.audio_engine.prev_osc1_waveform();
     }
@@ -367,16 +368,19 @@ impl App {
     }
 
     /// Get oscillator 2 detune
+    #[allow(dead_code)]
     pub fn osc2_detune(&self) -> f32 {
         self.audio_engine.osc2_detune()
     }
 
     /// Get oscillator 2 pitch offset
+    #[allow(dead_code)]
     pub fn osc2_pitch(&self) -> i32 {
         self.audio_engine.osc2_pitch()
     }
 
     /// Get oscillator mix
+    #[allow(dead_code)]
     pub fn osc_mix(&self) -> f32 {
         self.audio_engine.osc_mix()
     }
@@ -394,6 +398,7 @@ impl App {
     }
 
     /// Cycle filter to previous type
+    #[allow(dead_code)]
     pub fn prev_filter_type(&mut self) {
         self.audio_engine.prev_filter_type();
     }
@@ -470,6 +475,7 @@ impl App {
     }
 
     /// Get distortion drive
+    #[allow(dead_code)]
     pub fn distortion_drive(&self) -> f32 {
         self.audio_engine.distortion_drive()
     }
@@ -497,11 +503,13 @@ impl App {
     }
 
     /// Adjust delay feedback
+    #[allow(dead_code)]
     pub fn adjust_delay_feedback(&mut self, delta: f32) {
         self.audio_engine.adjust_delay_feedback(delta);
     }
 
     /// Get delay feedback
+    #[allow(dead_code)]
     pub fn delay_feedback(&self) -> f32 {
         self.audio_engine.delay_feedback()
     }
@@ -524,6 +532,7 @@ impl App {
     }
 
     /// Get reverb decay
+    #[allow(dead_code)]
     pub fn reverb_decay(&self) -> f32 {
         self.audio_engine.reverb_decay()
     }
@@ -588,6 +597,7 @@ impl App {
     }
 
     /// Adjust chorus rate
+    #[allow(dead_code)]
     pub fn adjust_chorus_rate(&mut self, delta: f32) {
         self.audio_engine.adjust_chorus_rate(delta);
     }
@@ -598,6 +608,7 @@ impl App {
     }
 
     /// Adjust chorus depth
+    #[allow(dead_code)]
     pub fn adjust_chorus_depth(&mut self, delta: f32) {
         self.audio_engine.adjust_chorus_depth(delta);
     }
@@ -932,11 +943,13 @@ impl App {
     // === PWM controls ===
 
     /// Get pulse width
+    #[allow(dead_code)]
     pub fn pulse_width(&self) -> f32 {
         self.audio_engine.pulse_width()
     }
 
     /// Adjust pulse width
+    #[allow(dead_code)]
     pub fn adjust_pulse_width(&mut self, delta: f32) {
         self.audio_engine.adjust_pulse_width(delta);
     }

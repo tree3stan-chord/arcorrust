@@ -47,24 +47,6 @@ impl Waveform {
     }
 }
 
-/// Generate a sample for the given waveform at the given phase
-///
-/// # Arguments
-/// * `waveform` - The type of waveform to generate
-/// * `phase` - Phase position (0.0 to 1.0)
-///
-/// # Returns
-/// Sample value (-1.0 to 1.0)
-pub fn generate(waveform: Waveform, phase: f32) -> f32 {
-    match waveform {
-        Waveform::Sine => generate_sine(phase),
-        Waveform::Sawtooth => generate_saw(phase),
-        Waveform::Square => generate_square(phase),
-        Waveform::Triangle => generate_triangle(phase),
-        Waveform::Pulse { width } => generate_pulse(phase, width),
-    }
-}
-
 /// Generate a band-limited sample using polyBLEP for alias reduction
 ///
 /// # Arguments

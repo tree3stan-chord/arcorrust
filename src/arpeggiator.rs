@@ -129,6 +129,7 @@ impl NoteDivision {
 
 /// Direction for UpDown pattern
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
 enum UpDownDirection {
     Up,
     Down,
@@ -136,6 +137,7 @@ enum UpDownDirection {
 
 /// Arpeggiator state
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct Arpeggiator {
     /// Whether arpeggiator is enabled
     enabled: bool,
@@ -186,6 +188,7 @@ impl Default for Arpeggiator {
     }
 }
 
+#[allow(dead_code)]
 impl Arpeggiator {
     /// Create a new arpeggiator with the given sample rate
     pub fn new(sample_rate: f32) -> Self {

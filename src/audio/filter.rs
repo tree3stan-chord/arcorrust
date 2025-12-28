@@ -95,6 +95,7 @@ impl FilterType {
     }
 
     /// Cycle to previous filter type
+    #[allow(dead_code)]
     pub fn prev(&self) -> Self {
         match self {
             FilterType::LowPass => FilterType::Notch,
@@ -105,27 +106,15 @@ impl FilterType {
     }
 }
 
-/// Biquad filter coefficients
-#[derive(Clone, Copy, Debug)]
+/// Biquad filter coefficients (used internally by BiquadFilter)
+#[derive(Clone, Copy, Debug, Default)]
+#[allow(dead_code)]
 struct Coefficients {
     b0: f32,
     b1: f32,
     b2: f32,
     a1: f32,
     a2: f32,
-}
-
-impl Default for Coefficients {
-    fn default() -> Self {
-        // Passthrough coefficients
-        Self {
-            b0: 1.0,
-            b1: 0.0,
-            b2: 0.0,
-            a1: 0.0,
-            a2: 0.0,
-        }
-    }
 }
 
 /// Biquad filter state (per-voice)
@@ -259,6 +248,7 @@ impl BiquadFilter {
     }
 
     /// Update sample rate (call if audio config changes)
+    #[allow(dead_code)]
     pub fn set_sample_rate(&mut self, sample_rate: f32) {
         self.sample_rate = sample_rate;
         self.calculate_coefficients();
@@ -325,6 +315,7 @@ impl BiquadFilter {
     /// Process a single sample through the filter
     /// Uses Direct Form II Transposed for better numerical stability
     #[inline]
+    #[allow(dead_code)]
     pub fn process(&self, input: f32, state: &mut BiquadState) -> f32 {
         if !self.enabled {
             return input;
@@ -346,6 +337,7 @@ impl BiquadFilter {
     }
 
     /// Get coefficients for external processing (e.g., modulation)
+    #[allow(dead_code)]
     pub fn get_coefficients(&self) -> (f32, f32, f32, f32, f32) {
         (
             self.coeffs.b0,

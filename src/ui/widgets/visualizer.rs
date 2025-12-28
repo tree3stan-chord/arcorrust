@@ -16,7 +16,8 @@ const VBLOCKS: [char; 9] = [' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇'
 pub struct Visualizer<'a> {
     /// Audio samples to visualize
     samples: &'a [f32],
-    /// Sample rate for spectrum calculations
+    /// Sample rate for spectrum calculations (stored for future frequency labeling)
+    #[allow(dead_code)]
     sample_rate: f32,
     /// Visualization mode
     mode: VizMode,

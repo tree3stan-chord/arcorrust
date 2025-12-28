@@ -53,10 +53,12 @@ impl Delay {
         self.delay_samples as f32 * 1000.0 / sample_rate
     }
 
+    #[allow(dead_code)]
     pub fn feedback(&self) -> f32 {
         self.feedback
     }
 
+    #[allow(dead_code)]
     pub fn mix(&self) -> f32 {
         self.mix
     }
@@ -85,6 +87,7 @@ impl Delay {
         input * (1.0 - self.mix) + delayed * self.mix
     }
 
+    #[allow(dead_code)]
     pub fn clear(&mut self) {
         self.buffer.fill(0.0);
     }
@@ -326,6 +329,7 @@ impl Reverb {
         input * (1.0 - self.mix) + allpass_out * self.mix
     }
 
+    #[allow(dead_code)]
     pub fn clear(&mut self) {
         for buf in &mut self.comb_buffers {
             buf.fill(0.0);
@@ -362,6 +366,7 @@ impl RingMod {
         }
     }
 
+    #[allow(dead_code)]
     pub fn set_carrier_freq(&mut self, freq: f32) {
         self.carrier_freq = freq.clamp(20.0, 2000.0);
     }
@@ -374,6 +379,7 @@ impl RingMod {
         self.carrier_freq = (self.carrier_freq + delta).clamp(20.0, 2000.0);
     }
 
+    #[allow(dead_code)]
     pub fn set_mix(&mut self, mix: f32) {
         self.mix = mix.clamp(0.0, 1.0);
     }
@@ -382,6 +388,7 @@ impl RingMod {
         self.mix
     }
 
+    #[allow(dead_code)]
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
@@ -467,6 +474,7 @@ impl Phaser {
         }
     }
 
+    #[allow(dead_code)]
     pub fn set_rate(&mut self, rate: f32) {
         self.rate = rate.clamp(0.1, 5.0);
     }
@@ -475,6 +483,7 @@ impl Phaser {
         self.rate
     }
 
+    #[allow(dead_code)]
     pub fn set_depth(&mut self, depth: f32) {
         self.depth = depth.clamp(0.0, 1.0);
     }
@@ -483,14 +492,17 @@ impl Phaser {
         self.depth
     }
 
+    #[allow(dead_code)]
     pub fn set_feedback(&mut self, feedback: f32) {
         self.feedback = feedback.clamp(-0.95, 0.95);
     }
 
+    #[allow(dead_code)]
     pub fn feedback(&self) -> f32 {
         self.feedback
     }
 
+    #[allow(dead_code)]
     pub fn set_stages(&mut self, stages: u8) {
         // Only allow 4, 6, 8, or 12
         self.stages = match stages {
@@ -505,14 +517,17 @@ impl Phaser {
         self.stages
     }
 
+    #[allow(dead_code)]
     pub fn set_mix(&mut self, mix: f32) {
         self.mix = mix.clamp(0.0, 1.0);
     }
 
+    #[allow(dead_code)]
     pub fn mix(&self) -> f32 {
         self.mix
     }
 
+    #[allow(dead_code)]
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
@@ -534,12 +549,8 @@ impl Phaser {
         let tan_w = w.tan();
         let coeff = (tan_w - 1.0) / (tan_w + 1.0);
 
-        // First-order allpass: y[n] = coeff * (x[n] + y[n-1]) - x[n-1]
-        // Simplified: y = coeff * x + y1 - coeff * y1
+        // First-order allpass filter
         let y1 = self.allpass_y1[stage];
-        let output = coeff * input + y1 * (1.0 - coeff * coeff) - coeff * y1;
-        // Actually simpler: y = coeff * (x - y1) + x1
-        // Using standard form: y = a * x + x1 - a * y1
         let output = coeff * (input - y1) + y1;
 
         self.allpass_y1[stage] = output;
@@ -580,6 +591,7 @@ impl Phaser {
         input * (1.0 - self.mix) + signal * self.mix
     }
 
+    #[allow(dead_code)]
     pub fn clear(&mut self) {
         self.allpass_y1.fill(0.0);
         self.feedback_sample = 0.0;
@@ -647,6 +659,7 @@ impl Chorus {
         }
     }
 
+    #[allow(dead_code)]
     pub fn set_rate(&mut self, rate: f32) {
         self.rate = rate.clamp(0.1, 5.0);
     }
@@ -655,6 +668,7 @@ impl Chorus {
         self.rate
     }
 
+    #[allow(dead_code)]
     pub fn set_depth(&mut self, depth: f32) {
         self.depth = depth.clamp(0.5, 5.0);
     }
@@ -663,6 +677,7 @@ impl Chorus {
         self.depth
     }
 
+    #[allow(dead_code)]
     pub fn set_voices(&mut self, voices: u8) {
         self.voices = voices.clamp(1, 4);
     }
@@ -671,14 +686,17 @@ impl Chorus {
         self.voices
     }
 
+    #[allow(dead_code)]
     pub fn set_mix(&mut self, mix: f32) {
         self.mix = mix.clamp(0.0, 1.0);
     }
 
+    #[allow(dead_code)]
     pub fn mix(&self) -> f32 {
         self.mix
     }
 
+    #[allow(dead_code)]
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
@@ -745,6 +763,7 @@ impl Chorus {
         input * (1.0 - self.mix) + wet * self.mix
     }
 
+    #[allow(dead_code)]
     pub fn clear(&mut self) {
         for buffer in &mut self.delay_lines {
             buffer.fill(0.0);
@@ -787,6 +806,7 @@ impl Bitcrusher {
         }
     }
 
+    #[allow(dead_code)]
     pub fn set_bit_depth(&mut self, bits: u8) {
         self.bit_depth = bits.clamp(1, 16);
     }
@@ -800,6 +820,7 @@ impl Bitcrusher {
         self.bit_depth = new_depth;
     }
 
+    #[allow(dead_code)]
     pub fn set_sample_rate_div(&mut self, div: u8) {
         self.sample_rate_div = div.clamp(1, 64);
     }
@@ -813,14 +834,17 @@ impl Bitcrusher {
         self.sample_rate_div = new_div;
     }
 
+    #[allow(dead_code)]
     pub fn set_mix(&mut self, mix: f32) {
         self.mix = mix.clamp(0.0, 1.0);
     }
 
+    #[allow(dead_code)]
     pub fn mix(&self) -> f32 {
         self.mix
     }
 
+    #[allow(dead_code)]
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
@@ -900,6 +924,7 @@ impl EffectsChain {
         self.bitcrusher.process(reverbed)
     }
 
+    #[allow(dead_code)]
     pub fn clear(&mut self) {
         self.chorus.clear();
         self.phaser.clear();

@@ -212,6 +212,7 @@ impl Default for Preset {
 
 impl Preset {
     /// Create a new preset with default values
+    #[allow(dead_code)]
     pub fn new(name: &str) -> Self {
         Self {
             name: name.to_string(),
@@ -351,6 +352,7 @@ impl PresetManager {
     }
 
     /// Save a preset
+    #[allow(dead_code)]
     pub fn save_preset(&mut self, preset: &Preset) -> Result<()> {
         let filename = format!("{}.json", preset.name.to_lowercase().replace(' ', "_"));
         let path = self.preset_dir.join(filename);
@@ -360,6 +362,7 @@ impl PresetManager {
     }
 
     /// Get preset directory path
+    #[allow(dead_code)]
     pub fn preset_dir(&self) -> &Path {
         &self.preset_dir
     }

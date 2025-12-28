@@ -883,26 +883,31 @@ impl AudioEngine {
     }
 
     /// Get oscillator 2 detune
+    #[allow(dead_code)]
     pub fn osc2_detune(&self) -> f32 {
         self.state.read().osc2_detune
     }
 
     /// Set oscillator 2 pitch offset in semitones
+    #[allow(dead_code)]
     pub fn set_osc2_pitch(&mut self, semitones: i32) {
         self.state.write().osc2_pitch = semitones.clamp(-24, 24);
     }
 
     /// Get oscillator 2 pitch offset
+    #[allow(dead_code)]
     pub fn osc2_pitch(&self) -> i32 {
         self.state.read().osc2_pitch
     }
 
     /// Set oscillator mix (0.0 = all osc1, 1.0 = all osc2)
+    #[allow(dead_code)]
     pub fn set_osc_mix(&mut self, mix: f32) {
         self.state.write().osc_mix = mix.clamp(0.0, 1.0);
     }
 
     /// Get oscillator mix
+    #[allow(dead_code)]
     pub fn osc_mix(&self) -> f32 {
         self.state.read().osc_mix
     }
@@ -910,6 +915,7 @@ impl AudioEngine {
     // === Filter controls ===
 
     /// Set filter type
+    #[allow(dead_code)]
     pub fn set_filter_type(&mut self, filter_type: FilterType) {
         self.state.write().filter.set_type(filter_type);
     }
@@ -927,6 +933,7 @@ impl AudioEngine {
     }
 
     /// Cycle filter to previous type
+    #[allow(dead_code)]
     pub fn prev_filter_type(&mut self) {
         let mut state = self.state.write();
         let prev_type = state.filter.filter_type().prev();
@@ -1049,6 +1056,7 @@ impl AudioEngine {
     }
 
     /// Get distortion drive
+    #[allow(dead_code)]
     pub fn distortion_drive(&self) -> f32 {
         self.state.read().effects.distortion.drive()
     }
@@ -1061,6 +1069,7 @@ impl AudioEngine {
     }
 
     /// Set delay enabled state
+    #[allow(dead_code)]
     pub fn set_delay_enabled(&mut self, enabled: bool) {
         self.state.write().effects.delay.set_enabled(enabled);
     }
@@ -1102,6 +1111,7 @@ impl AudioEngine {
     }
 
     /// Adjust delay feedback
+    #[allow(dead_code)]
     pub fn adjust_delay_feedback(&mut self, delta: f32) {
         let mut state = self.state.write();
         let current = state.effects.delay.feedback();
@@ -1109,11 +1119,13 @@ impl AudioEngine {
     }
 
     /// Get delay feedback
+    #[allow(dead_code)]
     pub fn delay_feedback(&self) -> f32 {
         self.state.read().effects.delay.feedback()
     }
 
     /// Adjust delay mix
+    #[allow(dead_code)]
     pub fn adjust_delay_mix(&mut self, delta: f32) {
         let mut state = self.state.write();
         let current = state.effects.delay.mix();
@@ -1121,6 +1133,7 @@ impl AudioEngine {
     }
 
     /// Get delay mix
+    #[allow(dead_code)]
     pub fn delay_mix(&self) -> f32 {
         self.state.read().effects.delay.mix()
     }
@@ -1133,6 +1146,7 @@ impl AudioEngine {
     }
 
     /// Set reverb enabled state
+    #[allow(dead_code)]
     pub fn set_reverb_enabled(&mut self, enabled: bool) {
         self.state.write().effects.reverb.set_enabled(enabled);
     }
@@ -1150,11 +1164,13 @@ impl AudioEngine {
     }
 
     /// Set reverb decay
+    #[allow(dead_code)]
     pub fn set_reverb_decay(&mut self, decay: f32) {
         self.state.write().effects.reverb.set_decay(decay);
     }
 
     /// Get reverb decay
+    #[allow(dead_code)]
     pub fn reverb_decay(&self) -> f32 {
         self.state.read().effects.reverb.decay()
     }
@@ -1184,6 +1200,7 @@ impl AudioEngine {
     }
 
     /// Set bitcrusher enabled state
+    #[allow(dead_code)]
     pub fn set_bitcrusher_enabled(&mut self, enabled: bool) {
         self.state.write().effects.bitcrusher.set_enabled(enabled);
     }
@@ -1199,6 +1216,7 @@ impl AudioEngine {
     }
 
     /// Set bitcrusher bit depth
+    #[allow(dead_code)]
     pub fn set_bitcrusher_bits(&mut self, bits: u8) {
         self.state.write().effects.bitcrusher.set_bit_depth(bits);
     }
@@ -1214,6 +1232,7 @@ impl AudioEngine {
     }
 
     /// Set bitcrusher sample rate divider
+    #[allow(dead_code)]
     pub fn set_bitcrusher_rate_div(&mut self, div: u8) {
         self.state.write().effects.bitcrusher.set_sample_rate_div(div);
     }
@@ -1224,11 +1243,13 @@ impl AudioEngine {
     }
 
     /// Get bitcrusher mix
+    #[allow(dead_code)]
     pub fn bitcrusher_mix(&self) -> f32 {
         self.state.read().effects.bitcrusher.mix()
     }
 
     /// Set bitcrusher mix
+    #[allow(dead_code)]
     pub fn set_bitcrusher_mix(&mut self, mix: f32) {
         self.state.write().effects.bitcrusher.set_mix(mix);
     }
@@ -1241,6 +1262,7 @@ impl AudioEngine {
     }
 
     /// Set chorus enabled state
+    #[allow(dead_code)]
     pub fn set_chorus_enabled(&mut self, enabled: bool) {
         self.state.write().effects.chorus.set_enabled(enabled);
     }
@@ -1256,11 +1278,13 @@ impl AudioEngine {
     }
 
     /// Set chorus rate
+    #[allow(dead_code)]
     pub fn set_chorus_rate(&mut self, rate: f32) {
         self.state.write().effects.chorus.set_rate(rate);
     }
 
     /// Adjust chorus rate
+    #[allow(dead_code)]
     pub fn adjust_chorus_rate(&mut self, delta: f32) {
         let mut state = self.state.write();
         let current = state.effects.chorus.rate();
@@ -1273,11 +1297,13 @@ impl AudioEngine {
     }
 
     /// Set chorus depth
+    #[allow(dead_code)]
     pub fn set_chorus_depth(&mut self, depth: f32) {
         self.state.write().effects.chorus.set_depth(depth);
     }
 
     /// Adjust chorus depth
+    #[allow(dead_code)]
     pub fn adjust_chorus_depth(&mut self, delta: f32) {
         let mut state = self.state.write();
         let current = state.effects.chorus.depth();
@@ -1290,16 +1316,19 @@ impl AudioEngine {
     }
 
     /// Set chorus voices
+    #[allow(dead_code)]
     pub fn set_chorus_voices(&mut self, voices: u8) {
         self.state.write().effects.chorus.set_voices(voices);
     }
 
     /// Get chorus mix
+    #[allow(dead_code)]
     pub fn chorus_mix(&self) -> f32 {
         self.state.read().effects.chorus.mix()
     }
 
     /// Set chorus mix
+    #[allow(dead_code)]
     pub fn set_chorus_mix(&mut self, mix: f32) {
         self.state.write().effects.chorus.set_mix(mix);
     }
@@ -1312,6 +1341,7 @@ impl AudioEngine {
     }
 
     /// Set phaser enabled state
+    #[allow(dead_code)]
     pub fn set_phaser_enabled(&mut self, enabled: bool) {
         self.state.write().effects.phaser.set_enabled(enabled);
     }
@@ -1327,6 +1357,7 @@ impl AudioEngine {
     }
 
     /// Adjust phaser rate
+    #[allow(dead_code)]
     pub fn adjust_phaser_rate(&mut self, delta: f32) {
         let mut state = self.state.write();
         let current = state.effects.phaser.rate();
@@ -1339,6 +1370,7 @@ impl AudioEngine {
     }
 
     /// Adjust phaser depth
+    #[allow(dead_code)]
     pub fn adjust_phaser_depth(&mut self, delta: f32) {
         let mut state = self.state.write();
         let current = state.effects.phaser.depth();
@@ -1358,6 +1390,7 @@ impl AudioEngine {
     }
 
     /// Set ring mod enabled state
+    #[allow(dead_code)]
     pub fn set_ring_mod_enabled(&mut self, enabled: bool) {
         self.state.write().effects.ring_mod.set_enabled(enabled);
     }
@@ -1373,6 +1406,7 @@ impl AudioEngine {
     }
 
     /// Set ring mod carrier frequency
+    #[allow(dead_code)]
     pub fn set_ring_mod_freq(&mut self, freq: f32) {
         self.state.write().effects.ring_mod.set_carrier_freq(freq);
     }
@@ -1388,6 +1422,7 @@ impl AudioEngine {
     }
 
     /// Set ring mod mix
+    #[allow(dead_code)]
     pub fn set_ring_mod_mix(&mut self, mix: f32) {
         self.state.write().effects.ring_mod.set_mix(mix);
     }
@@ -1401,6 +1436,7 @@ impl AudioEngine {
     }
 
     /// Set FM enabled state
+    #[allow(dead_code)]
     pub fn set_fm_enabled(&mut self, enabled: bool) {
         self.state.write().fm_enabled = enabled;
     }
@@ -1416,6 +1452,7 @@ impl AudioEngine {
     }
 
     /// Set FM amount
+    #[allow(dead_code)]
     pub fn set_fm_amount(&mut self, amount: f32) {
         self.state.write().fm_amount = amount.clamp(0.0, 2.0);
     }
@@ -1432,6 +1469,7 @@ impl AudioEngine {
     }
 
     /// Set FM ratio
+    #[allow(dead_code)]
     pub fn set_fm_ratio(&mut self, ratio: f32) {
         self.state.write().fm_ratio = ratio.clamp(0.5, 8.0);
     }
@@ -1498,6 +1536,7 @@ impl AudioEngine {
     }
 
     /// Get visualization buffer size
+    #[allow(dead_code)]
     pub fn viz_buffer_size(&self) -> usize {
         self.state.read().viz_buffer_size
     }
@@ -1516,6 +1555,7 @@ impl AudioEngine {
     }
 
     /// Set LFO enabled state
+    #[allow(dead_code)]
     pub fn set_lfo_enabled(&mut self, enabled: bool) {
         self.state.write().lfo.enabled = enabled;
     }
@@ -1526,6 +1566,7 @@ impl AudioEngine {
     }
 
     /// Set LFO rate
+    #[allow(dead_code)]
     pub fn set_lfo_rate(&mut self, rate: f32) {
         self.state.write().lfo.set_rate(rate);
     }
@@ -1541,6 +1582,7 @@ impl AudioEngine {
     }
 
     /// Set LFO depth
+    #[allow(dead_code)]
     pub fn set_lfo_depth(&mut self, depth: f32) {
         self.state.write().lfo.set_depth(depth);
     }
@@ -1556,6 +1598,7 @@ impl AudioEngine {
     }
 
     /// Set LFO waveform
+    #[allow(dead_code)]
     pub fn set_lfo_waveform(&mut self, waveform: LFOWaveform) {
         self.state.write().lfo.waveform = waveform;
     }
@@ -1566,6 +1609,7 @@ impl AudioEngine {
     }
 
     /// Cycle to previous LFO waveform
+    #[allow(dead_code)]
     pub fn prev_lfo_waveform(&mut self) {
         self.state.write().lfo.prev_waveform();
     }
@@ -1581,6 +1625,7 @@ impl AudioEngine {
     }
 
     /// Get all active LFO destinations
+    #[allow(dead_code)]
     pub fn lfo_destinations(&self) -> std::collections::HashSet<LFODestination> {
         self.state.read().lfo.destinations.clone()
     }
@@ -1593,6 +1638,7 @@ impl AudioEngine {
     }
 
     /// Set pulse width (0.05 - 0.95)
+    #[allow(dead_code)]
     pub fn set_pulse_width(&mut self, width: f32) {
         self.state.write().pulse_width = width.clamp(0.05, 0.95);
     }
@@ -1617,6 +1663,7 @@ impl AudioEngine {
     }
 
     /// Set noise enabled
+    #[allow(dead_code)]
     pub fn set_noise_enabled(&mut self, enabled: bool) {
         self.state.write().noise.enabled = enabled;
     }
@@ -1627,6 +1674,7 @@ impl AudioEngine {
     }
 
     /// Set noise level
+    #[allow(dead_code)]
     pub fn set_noise_level(&mut self, level: f32) {
         self.state.write().noise.set_level(level);
     }
@@ -1642,6 +1690,7 @@ impl AudioEngine {
     }
 
     /// Set noise type
+    #[allow(dead_code)]
     pub fn set_noise_type(&mut self, noise_type: NoiseType) {
         self.state.write().noise.noise_type = noise_type;
     }
@@ -1659,6 +1708,7 @@ impl AudioEngine {
     }
 
     /// Set portamento time in milliseconds (0-2000)
+    #[allow(dead_code)]
     pub fn set_portamento_time(&mut self, time_ms: f32) {
         self.state.write().portamento_time = time_ms.clamp(0.0, 2000.0);
     }
@@ -1675,6 +1725,7 @@ impl AudioEngine {
     }
 
     /// Set portamento mode
+    #[allow(dead_code)]
     pub fn set_portamento_mode(&mut self, mode: PortamentoMode) {
         self.state.write().portamento_mode = mode;
     }

@@ -125,6 +125,7 @@ impl NoiseGenerator {
     }
 
     /// Reset noise generator state
+    #[allow(dead_code)]
     pub fn reset(&mut self) {
         self.pink_rows = [0.0; 16];
         self.pink_index = 0;
