@@ -1,0 +1,43 @@
+[package]
+name = "arcorrust"
+version = "0.1.0"
+edition = "2021"
+description = "Terminal-based virtual instrument playground with real-time synthesis"
+license = "MIT"
+repository = "https://github.com/tree3stan-chord/arcorrust"
+keywords = ["synthesizer", "audio", "tui", "music", "dsp"]
+categories = ["multimedia::audio", "command-line-utilities"]
+
+[dependencies]
+# TUI
+ratatui = "0.29"
+crossterm = "0.28"
+
+# Audio
+cpal = "0.15"
+
+# Async runtime
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync"] }
+
+# Data serialization
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+
+# Config paths
+directories = "5"
+
+# Error handling
+anyhow = "1"
+thiserror = "2"
+
+# Synchronization
+parking_lot = "0.12"
+
+# Logging
+log = "0.4"
+env_logger = "0.11"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
