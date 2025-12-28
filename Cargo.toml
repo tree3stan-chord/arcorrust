@@ -43,6 +43,9 @@ env_logger = "0.11"
 # Time
 chrono = "0.4"
 
+# Random (for LFO sample & hold)
+fastrand = "2"
+
 [profile.release]
 opt-level = 3
 lto = true
