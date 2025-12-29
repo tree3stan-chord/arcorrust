@@ -139,6 +139,7 @@ impl NoiseGenerator {
     }
 
     /// Adjust noise level
+    #[allow(dead_code)]
     pub fn adjust_level(&mut self, delta: f32) {
         self.set_level(self.level + delta);
     }

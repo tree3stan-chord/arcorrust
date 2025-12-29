@@ -136,94 +136,132 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App)
                         }
                     } else {
                         // Check which modal we're in for special handling
-                        let in_lfo_modal = app.modal_panel() == app::ModalPanel::LFO;
-                        let in_perf_modal = app.modal_panel() == app::ModalPanel::Performance;
-                        let in_effects_modal = app.modal_panel() == app::ModalPanel::Effects;
-                        let in_mod_modal = app.modal_panel() == app::ModalPanel::Modulation;
+                        let active_modal = app.modal_panel();
+                        let in_edit_mode = app.edit_mode();
+                        let in_osc_modal = active_modal == app::ModalPanel::Oscillator;
+                        let in_filter_modal = active_modal == app::ModalPanel::Filter;
+                        let in_fx_basic_modal = active_modal == app::ModalPanel::EffectsBasic;
+                        let in_lfo_modal = active_modal == app::ModalPanel::LFO;
+                        let in_mod_modal = active_modal == app::ModalPanel::Modulation;
+                        let in_fx_ext_modal = active_modal == app::ModalPanel::EffectsExt;
+                        let in_perf_modal = active_modal == app::ModalPanel::Performance;
 
-                        match key.code {
-                            // Esc = close modal or quit
-                            KeyCode::Esc => {
-                                if app.modal_is_open() {
-                                    app.close_modal();
-                                } else {
-                                    return Ok(());
+                        // === EDIT MODE: Two-level navigation ===
+                        if in_edit_mode {
+                            match key.code {
+                                // Escape exits edit mode (back to panel navigation)
+                                KeyCode::Esc => {
+                                    app.exit_edit_mode();
                                 }
-                            }
-                            // Space = LFO toggle in LFO modal, otherwise panic
-                            KeyCode::Char(' ') => {
-                                if in_lfo_modal {
-                                    app.toggle_lfo();
-                                } else {
+                                // Left/Right arrows navigate parameters
+                                KeyCode::Left => {
+                                    app.prev_param();
+                                }
+                                KeyCode::Right => {
+                                    app.next_param();
+                                }
+                                // Up/Down arrows modify current parameter
+                                KeyCode::Up => {
+                                    app.modify_current_param(true);
+                                }
+                                KeyCode::Down => {
+                                    app.modify_current_param(false);
+                                }
+                                // Tab exits edit mode and moves to next panel
+                                KeyCode::Tab => {
+                                    app.exit_edit_mode();
+                                    app.next_modal();
+                                }
+                                // Backtab exits edit mode and moves to prev panel
+                                KeyCode::BackTab => {
+                                    app.exit_edit_mode();
+                                    app.prev_modal();
+                                }
+                                // Enter re-enters at first param (reset)
+                                KeyCode::Enter => {
+                                    app.enter_edit_mode();
+                                }
+                                // Space still works as panic in edit mode
+                                KeyCode::Char(' ') => {
                                     app.panic();
                                 }
+                                // Musical keyboard still works in edit mode
+                                KeyCode::Char(c) => {
+                                    if let Some(note) = input::keyboard::char_to_note(c, app.octave()) {
+                                        app.note_on(note, 100);
+                                    }
+                                }
+                                _ => {}
                             }
-                            // Arrow keys - modal controls or normal
-                            KeyCode::Up => {
-                                if in_lfo_modal {
-                                    app.adjust_lfo_rate(0.5);
-                                } else if in_perf_modal {
-                                    app.adjust_portamento_time(25.0);
-                                    app.adjust_arpeggiator_bpm(5.0);
-                                } else if in_effects_modal {
-                                    app.adjust_bitcrusher_bits(1);
-                                } else if in_mod_modal {
-                                    app.adjust_ring_mod_freq(20.0);
-                                    app.adjust_fm_ratio(0.25);
-                                } else {
+                        } else {
+                            // === NORMAL MODE: Panel navigation ===
+                            match key.code {
+                                // Esc = quit
+                                KeyCode::Esc => {
+                                    return Ok(());
+                                }
+                                // Enter = enter edit mode for current panel
+                                KeyCode::Enter => {
+                                    app.enter_edit_mode();
+                                }
+                                // Space = LFO toggle in LFO modal, otherwise panic
+                                KeyCode::Char(' ') => {
+                                    if in_lfo_modal {
+                                        app.toggle_lfo();
+                                    } else {
+                                        app.panic();
+                                    }
+                                }
+                                // Arrow keys - default behavior (volume, octave)
+                                KeyCode::Up => {
                                     app.adjust_volume(0.05);
                                 }
-                            }
-                            KeyCode::Down => {
-                                if in_lfo_modal {
-                                    app.adjust_lfo_rate(-0.5);
-                                } else if in_perf_modal {
-                                    app.adjust_portamento_time(-25.0);
-                                    app.adjust_arpeggiator_bpm(-5.0);
-                                } else if in_effects_modal {
-                                    app.adjust_bitcrusher_bits(-1);
-                                } else if in_mod_modal {
-                                    app.adjust_ring_mod_freq(-20.0);
-                                    app.adjust_fm_ratio(-0.25);
-                                } else {
+                                KeyCode::Down => {
                                     app.adjust_volume(-0.05);
                                 }
-                            }
-                            KeyCode::Left => {
-                                if in_lfo_modal {
-                                    app.adjust_lfo_depth(-0.1);
-                                } else if in_perf_modal {
-                                    app.adjust_noise_level(-0.1);
-                                    app.adjust_arpeggiator_gate(-0.1);
-                                } else if in_effects_modal {
-                                    app.adjust_bitcrusher_rate_div(-1);
-                                } else if in_mod_modal {
-                                    app.adjust_fm_amount(-0.1);
-                                } else {
+                                KeyCode::Left => {
                                     app.octave_down();
                                 }
-                            }
-                            KeyCode::Right => {
-                                if in_lfo_modal {
-                                    app.adjust_lfo_depth(0.1);
-                                } else if in_perf_modal {
-                                    app.adjust_noise_level(0.1);
-                                    app.adjust_arpeggiator_gate(0.1);
-                                } else if in_effects_modal {
-                                    app.adjust_bitcrusher_rate_div(1);
-                                } else if in_mod_modal {
-                                    app.adjust_fm_amount(0.1);
-                                } else {
+                                KeyCode::Right => {
                                     app.octave_up();
                                 }
+                                // Tab - cycle through modals
+                                KeyCode::Tab => {
+                                    app.next_modal();
+                                }
+                                // Backtab (Shift+Tab) - cycle modals backwards
+                                KeyCode::BackTab => {
+                                    app.prev_modal();
+                                }
+                            // Oscillator modal controls
+                            KeyCode::Char('1') if in_osc_modal => {
+                                app.next_osc1_waveform();
                             }
-                            // Tab - cycle through modals
-                            KeyCode::Tab => {
-                                app.next_modal();
+                            KeyCode::Char('2') if in_osc_modal => {
+                                app.toggle_osc2();
                             }
-                            // Backtab (Shift+Tab) - cycle modals backwards
-                            KeyCode::BackTab => {
-                                app.prev_modal();
+                            KeyCode::Char('3') if in_osc_modal => {
+                                app.next_osc2_waveform();
+                            }
+                            // Filter modal controls
+                            KeyCode::Char('4') if in_filter_modal => {
+                                app.toggle_filter();
+                            }
+                            KeyCode::Char('5') if in_filter_modal => {
+                                app.next_filter_type();
+                            }
+                            KeyCode::Char('e') | KeyCode::Char('E') if in_filter_modal => {
+                                app.adjust_filter_env_amount(0.1);
+                            }
+                            // Effects basic modal controls
+                            KeyCode::Char('d') | KeyCode::Char('D') if in_fx_basic_modal => {
+                                app.toggle_distortion();
+                            }
+                            KeyCode::Char('l') | KeyCode::Char('L') if in_fx_basic_modal => {
+                                app.toggle_delay();
+                            }
+                            KeyCode::Char('r') | KeyCode::Char('R') if in_fx_basic_modal => {
+                                app.toggle_reverb();
                             }
                             // LFO modal controls
                             KeyCode::Char('1') if in_lfo_modal => {
@@ -271,13 +309,13 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App)
                                 app.adjust_arpeggiator_octaves(1);
                             }
                             // Effects modal controls
-                            KeyCode::Char('c') | KeyCode::Char('C') if in_effects_modal => {
+                            KeyCode::Char('c') | KeyCode::Char('C') if in_fx_ext_modal => {
                                 app.toggle_chorus();
                             }
-                            KeyCode::Char('p') | KeyCode::Char('P') if in_effects_modal => {
+                            KeyCode::Char('p') | KeyCode::Char('P') if in_fx_ext_modal => {
                                 app.toggle_phaser();
                             }
-                            KeyCode::Char('b') | KeyCode::Char('B') if in_effects_modal => {
+                            KeyCode::Char('b') | KeyCode::Char('B') if in_fx_ext_modal => {
                                 app.toggle_bitcrusher();
                             }
                             // Modulation modal controls
@@ -363,6 +401,7 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App)
                                 }
                             }
                             _ => {}
+                        }
                         }
                     }
                 } else if key.kind == KeyEventKind::Release {

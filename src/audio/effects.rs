@@ -815,6 +815,7 @@ impl Bitcrusher {
         self.bit_depth
     }
 
+    #[allow(dead_code)]
     pub fn adjust_bit_depth(&mut self, delta: i8) {
         let new_depth = (self.bit_depth as i16 + delta as i16).clamp(1, 16) as u8;
         self.bit_depth = new_depth;
@@ -829,6 +830,7 @@ impl Bitcrusher {
         self.sample_rate_div
     }
 
+    #[allow(dead_code)]
     pub fn adjust_sample_rate_div(&mut self, delta: i8) {
         let new_div = (self.sample_rate_div as i16 + delta as i16).clamp(1, 64) as u8;
         self.sample_rate_div = new_div;

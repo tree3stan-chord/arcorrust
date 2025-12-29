@@ -17,19 +17,21 @@ use widgets::{PianoKeyboard, Visualizer};
 pub fn draw(frame: &mut Frame, app: &App) {
     let area = frame.area();
 
-    // Main layout: header, main content, footer
+    // Main layout: header, modal row, main content, footer
     let main_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(3),   // Header
+            Constraint::Length(3),   // Modal row (compact panels)
             Constraint::Min(10),     // Main content (sidebar + keyboard)
             Constraint::Length(3),   // Footer
         ])
         .split(area);
 
     draw_header(frame, main_chunks[0], app);
-    draw_main_content(frame, main_chunks[1], app);
-    draw_footer(frame, main_chunks[2], app);
+    draw_modal_row(frame, main_chunks[1], app);
+    draw_main_content(frame, main_chunks[2], app);
+    draw_footer(frame, main_chunks[3], app);
 }
 
 fn draw_header(frame: &mut Frame, area: Rect, app: &App) {
@@ -128,84 +130,38 @@ fn draw_sidebar_layout(frame: &mut Frame, area: Rect, app: &App) {
         .split(area);
 
     draw_sidebar(frame, chunks[0], app);
-
-    // In sidebar mode, modal slides up from bottom, keyboard shrinks
-    let modal_panel = app.modal_panel();
-    if modal_panel.is_open() {
-        let keyboard_chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Min(8),      // Keyboard (shrinks)
-                Constraint::Length(8),   // Modal panel
-            ])
-            .split(chunks[1]);
-
-        draw_keyboard_area(frame, keyboard_chunks[0], app);
-        draw_modal(frame, keyboard_chunks[1], app, modal_panel);
-    } else {
-        draw_keyboard_area(frame, chunks[1], app);
-    }
+    draw_keyboard_area(frame, chunks[1], app);
 }
 
 fn draw_wide_layout(frame: &mut Frame, area: Rect, app: &App) {
-    let modal_panel = app.modal_panel();
+    // Wide mode: control panels row + keyboard area
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(8),   // Control panels row
+            Constraint::Min(8),      // Keyboard area (includes visualizer + modal)
+        ])
+        .split(area);
 
-    // In wide mode, modal grows from top, panels compress
-    let rows = if modal_panel.is_open() {
-        Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(8),   // Modal panel
-                Constraint::Length(6),   // Control panels row (compressed)
-                Constraint::Min(8),      // Keyboard
-            ])
-            .split(area)
-    } else {
-        Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(8),   // Control panels row
-                Constraint::Min(8),      // Keyboard
-            ])
-            .split(area)
-    };
+    // Top row: three control panels
+    let panels = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Ratio(1, 3),
+            Constraint::Ratio(1, 3),
+            Constraint::Ratio(1, 3),
+        ])
+        .split(rows[0]);
 
-    if modal_panel.is_open() {
-        draw_modal(frame, rows[0], app, modal_panel);
-
-        // Compressed control panels
-        let panels = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Ratio(1, 3),
-                Constraint::Ratio(1, 3),
-                Constraint::Ratio(1, 3),
-            ])
-            .split(rows[1]);
-
-        draw_oscillator_panel(frame, panels[0], app);
-        draw_filter_panel(frame, panels[1], app);
-        draw_effects_panel(frame, panels[2], app);
-        draw_keyboard_area(frame, rows[2], app);
-    } else {
-        // Top row: three roughly square panels
-        let panels = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Ratio(1, 3),
-                Constraint::Ratio(1, 3),
-                Constraint::Ratio(1, 3),
-            ])
-            .split(rows[0]);
-
-        draw_oscillator_panel(frame, panels[0], app);
-        draw_filter_panel(frame, panels[1], app);
-        draw_effects_panel(frame, panels[2], app);
-        draw_keyboard_area(frame, rows[1], app);
-    }
+    draw_oscillator_panel(frame, panels[0], app);
+    draw_filter_panel(frame, panels[1], app);
+    draw_effects_panel(frame, panels[2], app);
+    draw_keyboard_area(frame, rows[1], app);
 }
 
 fn draw_sidebar(frame: &mut Frame, area: Rect, app: &App) {
+    let active_modal = app.modal_panel();
+
     // Stack controls vertically
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -217,7 +173,12 @@ fn draw_sidebar(frame: &mut Frame, area: Rect, app: &App) {
         ])
         .split(area);
 
-    // Oscillator section
+    draw_sidebar_oscillator(frame, chunks[0], app, active_modal == ModalPanel::Oscillator);
+    draw_sidebar_filter(frame, chunks[1], app, active_modal == ModalPanel::Filter);
+    draw_sidebar_effects(frame, chunks[2], app, active_modal == ModalPanel::EffectsBasic);
+}
+
+fn draw_sidebar_oscillator(frame: &mut Frame, area: Rect, app: &App, is_active: bool) {
     let osc1_wave = app.osc1_waveform();
     let osc1_detune = app.osc1_detune();
     let osc2_enabled = app.osc2_enabled();
@@ -235,37 +196,53 @@ fn draw_sidebar(frame: &mut Frame, area: Rect, app: &App) {
 
     let mix_pct = ((1.0 - mix) * 100.0) as u8;
 
+    // Active panel gets brighter text
+    let label_style = if is_active {
+        Style::default().fg(Color::White)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+
     let osc_text = vec![
         Line::from(vec![
-            Span::styled(" OSC1: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(" OSC1: ", label_style),
             Span::styled(osc1_wave.name(), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
             Span::styled(format!(" {:+.0}¢", osc1_detune), Style::default().fg(Color::DarkGray)),
         ]),
         Line::from(vec![
-            Span::styled(" OSC2: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(" OSC2: ", label_style),
             osc2_status,
             Span::styled(format!(" Mix {}:{}", mix_pct, 100 - mix_pct), Style::default().fg(Color::DarkGray)),
         ]),
         Line::from(""),
         Line::from(vec![
-            Span::styled(" Tab", Style::default().fg(Color::Yellow)),
+            Span::styled(" 1", Style::default().fg(Color::Yellow)),
             Span::styled(" wave  ", Style::default().fg(Color::DarkGray)),
-            Span::styled("F2", Style::default().fg(Color::Yellow)),
+            Span::styled("2", Style::default().fg(Color::Yellow)),
             Span::styled(" osc2  ", Style::default().fg(Color::DarkGray)),
-            Span::styled("F3", Style::default().fg(Color::Yellow)),
+            Span::styled("3", Style::default().fg(Color::Yellow)),
             Span::styled(" wave2", Style::default().fg(Color::DarkGray)),
         ]),
     ];
+
+    let border_color = if is_active { Color::Cyan } else { Color::DarkGray };
+    let title_style = if is_active {
+        Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Cyan)
+    };
+
     let osc = Paragraph::new(osc_text).block(
         Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::DarkGray))
+            .border_style(Style::default().fg(border_color))
             .title(" Oscillator ")
-            .title_style(Style::default().fg(Color::Cyan)),
+            .title_style(title_style),
     );
-    frame.render_widget(osc, chunks[0]);
+    frame.render_widget(osc, area);
+}
 
-    // Filter section
+fn draw_sidebar_filter(frame: &mut Frame, area: Rect, app: &App, is_active: bool) {
     let filter_enabled = app.filter_enabled();
     let filter_type = app.filter_type();
     let filter_cutoff = app.filter_cutoff();
@@ -289,38 +266,55 @@ fn draw_sidebar(frame: &mut Frame, area: Rect, app: &App) {
 
     let env_pct = (filter_env_amount * 100.0) as u8;
 
+    // Active panel gets brighter text
+    let label_style = if is_active {
+        Style::default().fg(Color::White)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+
     let filter_text = vec![
         Line::from(vec![
-            Span::styled(" Type: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(" Type: ", label_style),
             filter_status,
             Span::styled(format!("  Cut: {}Hz", cutoff_str), Style::default().fg(Color::White)),
         ]),
         Line::from(vec![
-            Span::styled(" Reso: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(" Reso: ", label_style),
             Span::styled(format!("{:.1}", filter_resonance), Style::default().fg(Color::White)),
             Span::styled(format!("  Env: {}%", env_pct), Style::default().fg(Color::Yellow)),
         ]),
         Line::from(""),
         Line::from(vec![
-            Span::styled(" F4", Style::default().fg(Color::Yellow)),
+            Span::styled(" 4", Style::default().fg(Color::Yellow)),
             Span::styled("/", Style::default().fg(Color::DarkGray)),
             Span::styled("5", Style::default().fg(Color::Yellow)),
             Span::styled(" type ", Style::default().fg(Color::DarkGray)),
-            Span::styled("F6-9", Style::default().fg(Color::Yellow)),
-            Span::styled(" cut/res ", Style::default().fg(Color::DarkGray)),
-            Span::styled("F10/11", Style::default().fg(Color::Yellow)),
+            Span::styled("^/v", Style::default().fg(Color::Yellow)),
+            Span::styled(" cut ", Style::default().fg(Color::DarkGray)),
+            Span::styled("</>", Style::default().fg(Color::Yellow)),
+            Span::styled(" res", Style::default().fg(Color::DarkGray)),
         ]),
     ];
+
+    let border_color = if is_active { Color::Magenta } else { Color::DarkGray };
+    let title_style = if is_active {
+        Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Magenta)
+    };
+
     let filter = Paragraph::new(filter_text).block(
         Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::DarkGray))
+            .border_style(Style::default().fg(border_color))
             .title(" Filter ")
-            .title_style(Style::default().fg(Color::Magenta)),
+            .title_style(title_style),
     );
-    frame.render_widget(filter, chunks[1]);
+    frame.render_widget(filter, area);
+}
 
-    // Effects section
+fn draw_sidebar_effects(frame: &mut Frame, area: Rect, app: &App, is_active: bool) {
     let dist_enabled = app.distortion_enabled();
     let dist_type = app.distortion_type_name();
     let delay_enabled = app.delay_enabled();
@@ -346,54 +340,74 @@ fn draw_sidebar(frame: &mut Frame, area: Rect, app: &App) {
         Span::styled("Off", Style::default().fg(Color::DarkGray))
     };
 
+    // Active panel gets brighter text
+    let label_style = if is_active {
+        Style::default().fg(Color::White)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+
     let fx_text = vec![
         Line::from(vec![
-            Span::styled(" Dist: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(" Dist: ", label_style),
             dist_status,
-            Span::styled("  Dly: ", Style::default().fg(Color::DarkGray)),
+            Span::styled("  Dly: ", label_style),
             delay_status,
-            Span::styled("  Rev: ", Style::default().fg(Color::DarkGray)),
+            Span::styled("  Rev: ", label_style),
             reverb_status,
         ]),
         Line::from(""),
         Line::from(vec![
-            Span::styled(" F12", Style::default().fg(Color::Yellow)),
+            Span::styled(" D", Style::default().fg(Color::Yellow)),
             Span::styled(" dist  ", Style::default().fg(Color::DarkGray)),
-            Span::styled("^4", Style::default().fg(Color::Yellow)),
+            Span::styled("L", Style::default().fg(Color::Yellow)),
             Span::styled(" dly  ", Style::default().fg(Color::DarkGray)),
-            Span::styled("^7", Style::default().fg(Color::Yellow)),
+            Span::styled("R", Style::default().fg(Color::Yellow)),
             Span::styled(" rev", Style::default().fg(Color::DarkGray)),
         ]),
     ];
+
+    let border_color = if is_active { Color::Yellow } else { Color::DarkGray };
+    let title_style = if is_active {
+        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Yellow)
+    };
+
     let effects = Paragraph::new(fx_text).block(
         Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::DarkGray))
+            .border_style(Style::default().fg(border_color))
             .title(" Effects ")
-            .title_style(Style::default().fg(Color::Yellow)),
+            .title_style(title_style),
     );
-    frame.render_widget(effects, chunks[2]);
+    frame.render_widget(effects, area);
 }
 
 fn draw_keyboard_area(frame: &mut Frame, area: Rect, app: &App) {
     let held_notes = app.held_notes();
     let octave = app.octave();
     let viz_mode = app.viz_mode();
+    let modal_panel = app.modal_panel();
 
-    // Split area for keyboard and visualizer
+    // Split area for keyboard, visualizer, and enlarged modal
     let has_viz = viz_mode != VizMode::Off;
     let main_chunks = if has_viz {
         Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Min(12),     // Keyboard area
-                Constraint::Length(10),  // Visualizer
+                Constraint::Min(10),     // Keyboard area
+                Constraint::Length(8),   // Visualizer
+                Constraint::Length(6),   // Enlarged modal
             ])
             .split(area)
     } else {
         Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Min(1)])
+            .constraints([
+                Constraint::Min(10),     // Keyboard area
+                Constraint::Length(6),   // Enlarged modal
+            ])
             .split(area)
     };
 
@@ -492,6 +506,11 @@ fn draw_keyboard_area(frame: &mut Frame, area: Rect, app: &App) {
                 .title_style(Style::default().fg(Color::Cyan)),
         );
         frame.render_widget(visualizer, main_chunks[1]);
+        // Draw enlarged modal
+        draw_modal(frame, main_chunks[2], app, modal_panel);
+    } else {
+        // Draw enlarged modal (no visualizer)
+        draw_modal(frame, main_chunks[1], app, modal_panel);
     }
 }
 
@@ -508,14 +527,6 @@ fn draw_footer(frame: &mut Frame, area: Rect, app: &App) {
     let layout_name = app.layout_mode().name();
     let viz_name = app.viz_mode().name();
     let modal_panel = app.modal_panel();
-    let modal_indicator = if modal_panel.is_open() {
-        Span::styled(
-            format!(" [{}] ", modal_panel.name()),
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
-        )
-    } else {
-        Span::styled(" Tab", Style::default().fg(Color::Yellow))
-    };
 
     let controls = Paragraph::new(Line::from(vec![
         Span::styled(" Esc", Style::default().fg(Color::Yellow)),
@@ -526,12 +537,8 @@ fn draw_footer(frame: &mut Frame, area: Rect, app: &App) {
         Span::styled(format!(" {} ", layout_name), Style::default().fg(Color::Cyan)),
         Span::styled("Home", Style::default().fg(Color::Yellow)),
         Span::styled(format!(" {} ", viz_name), Style::default().fg(Color::Magenta)),
-        modal_indicator,
-        if !modal_panel.is_open() {
-            Span::styled(" modal", Style::default().fg(Color::DarkGray))
-        } else {
-            Span::styled("", Style::default())
-        },
+        Span::styled("Tab", Style::default().fg(Color::Yellow)),
+        Span::styled(format!(" [{}]", modal_panel.name()), Style::default().fg(Color::Cyan)),
     ]))
     .block(
         Block::default()
@@ -739,25 +746,380 @@ fn draw_effects_panel(frame: &mut Frame, area: Rect, app: &App) {
     frame.render_widget(effects, area);
 }
 
-// === Modal Panels ===
+// === Compact Modal Row ===
+
+fn draw_modal_row(frame: &mut Frame, area: Rect, app: &App) {
+    let active_modal = app.modal_panel();
+
+    // Split into 4 equal columns
+    let panels = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Ratio(1, 4),
+            Constraint::Ratio(1, 4),
+            Constraint::Ratio(1, 4),
+            Constraint::Ratio(1, 4),
+        ])
+        .split(area);
+
+    draw_compact_lfo(frame, panels[0], app, active_modal == ModalPanel::LFO);
+    draw_compact_modulation(frame, panels[1], app, active_modal == ModalPanel::Modulation);
+    draw_compact_effects(frame, panels[2], app, active_modal == ModalPanel::EffectsExt);
+    draw_compact_performance(frame, panels[3], app, active_modal == ModalPanel::Performance);
+}
+
+fn draw_compact_lfo(frame: &mut Frame, area: Rect, app: &App, is_active: bool) {
+    let enabled = app.lfo_enabled();
+    let waveform = app.lfo_waveform();
+
+    let status = if enabled { "On" } else { "Off" };
+    let status_color = if enabled { Color::Green } else { Color::Red };
+
+    let content = Line::from(vec![
+        Span::styled(status, Style::default().fg(status_color)),
+        Span::styled(" ", Style::default()),
+        Span::styled(waveform.name(), Style::default().fg(Color::Cyan)),
+    ]);
+
+    let border_color = if is_active { Color::Cyan } else { Color::DarkGray };
+    let title_style = if is_active {
+        Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+
+    let widget = Paragraph::new(content).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(border_color))
+            .title(" LFO ")
+            .title_style(title_style),
+    );
+    frame.render_widget(widget, area);
+}
+
+fn draw_compact_modulation(frame: &mut Frame, area: Rect, app: &App, is_active: bool) {
+    let ring_on = app.ring_mod_enabled();
+    let fm_on = app.fm_enabled();
+
+    let content = Line::from(vec![
+        Span::styled("Ring:", Style::default().fg(Color::DarkGray)),
+        Span::styled(
+            if ring_on { "On" } else { "Off" },
+            Style::default().fg(if ring_on { Color::Green } else { Color::Red }),
+        ),
+        Span::styled(" FM:", Style::default().fg(Color::DarkGray)),
+        Span::styled(
+            if fm_on { "On" } else { "Off" },
+            Style::default().fg(if fm_on { Color::Green } else { Color::Red }),
+        ),
+    ]);
+
+    let border_color = if is_active { Color::Magenta } else { Color::DarkGray };
+    let title_style = if is_active {
+        Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+
+    let widget = Paragraph::new(content).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(border_color))
+            .title(" Mod ")
+            .title_style(title_style),
+    );
+    frame.render_widget(widget, area);
+}
+
+fn draw_compact_effects(frame: &mut Frame, area: Rect, app: &App, is_active: bool) {
+    let chorus_on = app.chorus_enabled();
+    let phaser_on = app.phaser_enabled();
+    let crush_on = app.bitcrusher_enabled();
+
+    let content = Line::from(vec![
+        Span::styled(
+            "C",
+            Style::default().fg(if chorus_on { Color::Green } else { Color::DarkGray }),
+        ),
+        Span::styled(" ", Style::default()),
+        Span::styled(
+            "P",
+            Style::default().fg(if phaser_on { Color::Green } else { Color::DarkGray }),
+        ),
+        Span::styled(" ", Style::default()),
+        Span::styled(
+            "B",
+            Style::default().fg(if crush_on { Color::Green } else { Color::DarkGray }),
+        ),
+    ]);
+
+    let border_color = if is_active { Color::Yellow } else { Color::DarkGray };
+    let title_style = if is_active {
+        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+
+    let widget = Paragraph::new(content).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(border_color))
+            .title(" FX+ ")
+            .title_style(title_style),
+    );
+    frame.render_widget(widget, area);
+}
+
+fn draw_compact_performance(frame: &mut Frame, area: Rect, app: &App, is_active: bool) {
+    let arp_on = app.arpeggiator_enabled();
+    let noise_on = app.noise_enabled();
+    let porta_on = app.portamento_mode() != crate::audio::PortamentoMode::Off;
+
+    let content = Line::from(vec![
+        Span::styled(
+            "Arp",
+            Style::default().fg(if arp_on { Color::Green } else { Color::DarkGray }),
+        ),
+        Span::styled(" ", Style::default()),
+        Span::styled(
+            "N",
+            Style::default().fg(if noise_on { Color::Green } else { Color::DarkGray }),
+        ),
+        Span::styled(" ", Style::default()),
+        Span::styled(
+            "G",
+            Style::default().fg(if porta_on { Color::Green } else { Color::DarkGray }),
+        ),
+    ]);
+
+    let border_color = if is_active { Color::Green } else { Color::DarkGray };
+    let title_style = if is_active {
+        Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+
+    let widget = Paragraph::new(content).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(border_color))
+            .title(" Perf ")
+            .title_style(title_style),
+    );
+    frame.render_widget(widget, area);
+}
+
+// === Modal Panels (Enlarged) ===
 
 fn draw_modal(frame: &mut Frame, area: Rect, app: &App, modal: ModalPanel) {
+    let edit_mode = app.edit_mode();
+    let param_idx = app.param_index();
+
     match modal {
-        ModalPanel::None => {}
-        ModalPanel::LFO => draw_lfo_modal(frame, area, app),
-        ModalPanel::Modulation => draw_modulation_modal(frame, area, app),
-        ModalPanel::Effects => draw_effects_modal(frame, area, app),
-        ModalPanel::Performance => draw_performance_modal(frame, area, app),
+        ModalPanel::Oscillator => draw_oscillator_modal(frame, area, app, edit_mode, param_idx),
+        ModalPanel::Filter => draw_filter_modal(frame, area, app, edit_mode, param_idx),
+        ModalPanel::EffectsBasic => draw_effects_basic_modal(frame, area, app, edit_mode, param_idx),
+        ModalPanel::LFO => draw_lfo_modal(frame, area, app, edit_mode, param_idx),
+        ModalPanel::Modulation => draw_modulation_modal(frame, area, app, edit_mode, param_idx),
+        ModalPanel::EffectsExt => draw_effects_ext_modal(frame, area, app, edit_mode, param_idx),
+        ModalPanel::Performance => draw_performance_modal(frame, area, app, edit_mode, param_idx),
     }
 }
 
-fn draw_lfo_modal(frame: &mut Frame, area: Rect, app: &App) {
+fn draw_oscillator_modal(frame: &mut Frame, area: Rect, app: &App, edit_mode: bool, param_idx: usize) {
+    let osc1_wave = app.osc1_waveform();
+    let osc1_detune = app.osc1_detune();
+    let osc2_enabled = app.osc2_enabled();
+    let osc2_wave = app.osc2_waveform();
+    let mix = app.osc_mix();
+
+    // Helper for parameter highlighting
+    let param_style = |idx: usize, base_color: Color| -> Style {
+        if edit_mode && param_idx == idx {
+            Style::default().fg(Color::Black).bg(base_color).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(base_color)
+        }
+    };
+
+    let osc2_color = if osc2_enabled { Color::Green } else { Color::Red };
+    let osc2_status = if osc2_enabled { "On" } else { "Off" };
+
+    let mix_pct = ((1.0 - mix) * 100.0) as u8;
+
+    // Params: 0=Wave1, 1=Osc2 on/off, 2=Wave2, 3=Mix
+    let content = vec![
+        Line::from(vec![
+            Span::styled(" OSC1: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(osc1_wave.name(), param_style(0, Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("  Detune: {:+.0}¢", osc1_detune), Style::default().fg(Color::White)),
+        ]),
+        Line::from(vec![
+            Span::styled(" OSC2: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(osc2_status, param_style(1, osc2_color)),
+            Span::styled("  Wave: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(osc2_wave.name(), param_style(2, Color::Cyan)),
+            Span::styled("  Mix: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{}:{}", mix_pct, 100 - mix_pct), param_style(3, Color::White)),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled(if edit_mode { " </>  " } else { " Enter " }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { "select " } else { "edit   " }, Style::default().fg(Color::DarkGray)),
+            Span::styled(if edit_mode { "^/v" } else { "Tab" }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { " modify " } else { " next   " }, Style::default().fg(Color::DarkGray)),
+            Span::styled(if edit_mode { "Esc" } else { "" }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { " back" } else { "" }, Style::default().fg(Color::DarkGray)),
+        ]),
+    ];
+
+    let border_color = if edit_mode { Color::Yellow } else { Color::Cyan };
+    let modal_widget = Paragraph::new(content).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(border_color))
+            .title(if edit_mode { " Oscillator [EDIT] " } else { " Oscillator " })
+            .title_style(Style::default().fg(border_color).add_modifier(Modifier::BOLD)),
+    );
+    frame.render_widget(modal_widget, area);
+}
+
+fn draw_filter_modal(frame: &mut Frame, area: Rect, app: &App, edit_mode: bool, param_idx: usize) {
+    let filter_enabled = app.filter_enabled();
+    let filter_type = app.filter_type();
+    let filter_cutoff = app.filter_cutoff();
+    let filter_resonance = app.filter_resonance();
+    let filter_env_amount = app.filter_env_amount();
+
+    // Helper for parameter highlighting
+    let param_style = |idx: usize, base_color: Color| -> Style {
+        if edit_mode && param_idx == idx {
+            Style::default().fg(Color::Black).bg(base_color).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(base_color)
+        }
+    };
+
+    let enabled_color = if filter_enabled { Color::Green } else { Color::Red };
+    let enabled_str = if filter_enabled { "On" } else { "Off" };
+
+    let cutoff_str = if filter_cutoff >= 1000.0 {
+        format!("{:.1}kHz", filter_cutoff / 1000.0)
+    } else {
+        format!("{:.0}Hz", filter_cutoff)
+    };
+
+    // Params: 0=On/Off, 1=Type, 2=Cutoff, 3=Resonance, 4=EnvAmt
+    let content = vec![
+        Line::from(vec![
+            Span::styled(" Filter: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(enabled_str, param_style(0, enabled_color)),
+            Span::styled("  Type: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(filter_type.name(), param_style(1, Color::Magenta)),
+            Span::styled("  Cutoff: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(cutoff_str, param_style(2, Color::White)),
+            Span::styled("  Reso: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{:.1}", filter_resonance), param_style(3, Color::White)),
+            Span::styled("  Env: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{:.0}%", filter_env_amount * 100.0), param_style(4, Color::Yellow)),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled(if edit_mode { " </>  " } else { " Enter " }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { "select " } else { "edit   " }, Style::default().fg(Color::DarkGray)),
+            Span::styled(if edit_mode { "^/v" } else { "Tab" }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { " modify " } else { " next   " }, Style::default().fg(Color::DarkGray)),
+            Span::styled(if edit_mode { "Esc" } else { "" }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { " back" } else { "" }, Style::default().fg(Color::DarkGray)),
+        ]),
+    ];
+
+    let border_color = if edit_mode { Color::Yellow } else { Color::Magenta };
+    let modal_widget = Paragraph::new(content).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(border_color))
+            .title(if edit_mode { " Filter [EDIT] " } else { " Filter " })
+            .title_style(Style::default().fg(border_color).add_modifier(Modifier::BOLD)),
+    );
+    frame.render_widget(modal_widget, area);
+}
+
+fn draw_effects_basic_modal(frame: &mut Frame, area: Rect, app: &App, edit_mode: bool, param_idx: usize) {
+    let dist_enabled = app.distortion_enabled();
+    let dist_type = app.distortion_type_name();
+    let delay_enabled = app.delay_enabled();
+    let delay_time = app.delay_time_ms();
+    let reverb_enabled = app.reverb_enabled();
+    let reverb_mix = app.reverb_mix();
+
+    // Helper for parameter highlighting
+    let param_style = |idx: usize, base_color: Color| -> Style {
+        if edit_mode && param_idx == idx {
+            Style::default().fg(Color::Black).bg(base_color).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(base_color)
+        }
+    };
+
+    let dist_color = if dist_enabled { Color::Red } else { Color::DarkGray };
+    let dist_str = if dist_enabled { format!("On ({})", dist_type) } else { "Off".to_string() };
+
+    let delay_color = if delay_enabled { Color::Blue } else { Color::DarkGray };
+    let delay_str = if delay_enabled { format!("On ({:.0}ms)", delay_time) } else { "Off".to_string() };
+
+    let reverb_color = if reverb_enabled { Color::Green } else { Color::DarkGray };
+    let reverb_str = if reverb_enabled { format!("On ({:.0}%)", reverb_mix * 100.0) } else { "Off".to_string() };
+
+    // Params: 0=Distortion, 1=Delay, 2=Reverb
+    let content = vec![
+        Line::from(vec![
+            Span::styled(" Distortion: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(dist_str, param_style(0, dist_color)),
+            Span::styled("  Delay: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(delay_str, param_style(1, delay_color)),
+            Span::styled("  Reverb: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(reverb_str, param_style(2, reverb_color)),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled(if edit_mode { " </>  " } else { " Enter " }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { "select " } else { "edit   " }, Style::default().fg(Color::DarkGray)),
+            Span::styled(if edit_mode { "^/v" } else { "Tab" }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { " toggle/adjust " } else { " next   " }, Style::default().fg(Color::DarkGray)),
+            Span::styled(if edit_mode { "Esc" } else { "" }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { " back" } else { "" }, Style::default().fg(Color::DarkGray)),
+        ]),
+    ];
+
+    let border_color = if edit_mode { Color::Cyan } else { Color::Yellow };
+    let modal_widget = Paragraph::new(content).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(border_color))
+            .title(if edit_mode { " Effects [EDIT] " } else { " Effects " })
+            .title_style(Style::default().fg(border_color).add_modifier(Modifier::BOLD)),
+    );
+    frame.render_widget(modal_widget, area);
+}
+
+fn draw_lfo_modal(frame: &mut Frame, area: Rect, app: &App, edit_mode: bool, param_idx: usize) {
     use crate::audio::LFODestination;
 
     let enabled = app.lfo_enabled();
     let waveform = app.lfo_waveform();
     let rate = app.lfo_rate();
     let depth = app.lfo_depth();
+
+    // Helper for parameter highlighting
+    let param_style = |idx: usize, base_color: Color| -> Style {
+        if edit_mode && param_idx == idx {
+            Style::default().fg(Color::Black).bg(base_color).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(base_color)
+        }
+    };
 
     // Build destination checkboxes
     let dest_pitch = if app.lfo_has_destination(LFODestination::Pitch) { "[x]" } else { "[ ]" };
@@ -767,22 +1129,20 @@ fn draw_lfo_modal(frame: &mut Frame, area: Rect, app: &App) {
     let dest_osc2 = if app.lfo_has_destination(LFODestination::Osc2Pitch) { "[x]" } else { "[ ]" };
     let dest_pan = if app.lfo_has_destination(LFODestination::Pan) { "[x]" } else { "[ ]" };
 
-    let status_style = if enabled {
-        Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
-    } else {
-        Style::default().fg(Color::Red)
-    };
+    let enabled_color = if enabled { Color::Green } else { Color::Red };
+    let enabled_str = if enabled { "ON" } else { "OFF" };
 
+    // Params: 0=On/Off, 1=Wave, 2=Rate, 3=Depth
     let content = vec![
         Line::from(vec![
             Span::styled(" Status: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(if enabled { "ON" } else { "OFF" }, status_style),
+            Span::styled(enabled_str, param_style(0, enabled_color)),
             Span::styled("  Wave: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(waveform.name(), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::styled(waveform.name(), param_style(1, Color::Cyan)),
             Span::styled("  Rate: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{:.1} Hz", rate), Style::default().fg(Color::White)),
+            Span::styled(format!("{:.1} Hz", rate), param_style(2, Color::White)),
             Span::styled("  Depth: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{:.0}%", depth * 100.0), Style::default().fg(Color::White)),
+            Span::styled(format!("{:.0}%", depth * 100.0), param_style(3, Color::White)),
         ]),
         Line::from(""),
         Line::from(vec![
@@ -796,107 +1156,99 @@ fn draw_lfo_modal(frame: &mut Frame, area: Rect, app: &App) {
         ]),
         Line::from(""),
         Line::from(vec![
-            Span::styled(" Space", Style::default().fg(Color::Yellow)),
-            Span::styled(" on/off ", Style::default().fg(Color::DarkGray)),
-            Span::styled("1", Style::default().fg(Color::Yellow)),
-            Span::styled(" wave ", Style::default().fg(Color::DarkGray)),
-            Span::styled("^/v", Style::default().fg(Color::Yellow)),
-            Span::styled(" rate ", Style::default().fg(Color::DarkGray)),
-            Span::styled("</>", Style::default().fg(Color::Yellow)),
-            Span::styled(" depth ", Style::default().fg(Color::DarkGray)),
-            Span::styled("P/F/V/W/O/A", Style::default().fg(Color::Yellow)),
-            Span::styled(" route", Style::default().fg(Color::DarkGray)),
+            Span::styled(if edit_mode { " </>  " } else { " Enter " }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { "select " } else { "edit   " }, Style::default().fg(Color::DarkGray)),
+            Span::styled(if edit_mode { "^/v" } else { "Tab" }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { " modify " } else { " next   " }, Style::default().fg(Color::DarkGray)),
+            Span::styled(if edit_mode { "Esc" } else { "P/F/V/W/O/A" }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { " back" } else { " route" }, Style::default().fg(Color::DarkGray)),
         ]),
     ];
 
+    let border_color = if edit_mode { Color::Yellow } else { Color::Cyan };
     let modal_widget = Paragraph::new(content).block(
         Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan))
-            .title(" LFO ")
-            .title_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            .border_style(Style::default().fg(border_color))
+            .title(if edit_mode { " LFO [EDIT] " } else { " LFO " })
+            .title_style(Style::default().fg(border_color).add_modifier(Modifier::BOLD)),
     );
     frame.render_widget(modal_widget, area);
 }
 
-fn draw_modulation_modal(frame: &mut Frame, area: Rect, app: &App) {
+fn draw_modulation_modal(frame: &mut Frame, area: Rect, app: &App, edit_mode: bool, param_idx: usize) {
     // Ring Mod
     let ring_enabled = app.ring_mod_enabled();
     let ring_freq = app.ring_mod_freq();
     let ring_mix = app.ring_mod_mix();
-
-    let ring_status = if ring_enabled {
-        Span::styled("On", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
-    } else {
-        Span::styled("Off", Style::default().fg(Color::Red))
-    };
 
     // FM Synthesis
     let fm_enabled = app.fm_enabled();
     let fm_amount = app.fm_amount();
     let fm_ratio = app.fm_ratio();
 
-    let fm_status = if fm_enabled {
-        Span::styled("On", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
-    } else {
-        Span::styled("Off", Style::default().fg(Color::Red))
+    // Helper for parameter highlighting
+    let param_style = |idx: usize, base_color: Color| -> Style {
+        if edit_mode && param_idx == idx {
+            Style::default().fg(Color::Black).bg(base_color).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(base_color)
+        }
     };
 
+    let ring_color = if ring_enabled { Color::Green } else { Color::Red };
+    let ring_str = if ring_enabled { "On" } else { "Off" };
+
+    let fm_color = if fm_enabled { Color::Green } else { Color::Red };
+    let fm_str = if fm_enabled { "On" } else { "Off" };
+
+    // Params: 0=Ring on/off, 1=Ring Freq, 2=FM on/off, 3=FM Ratio
     let content = vec![
         Line::from(vec![
             Span::styled(" Ring Mod: ", Style::default().fg(Color::DarkGray)),
-            ring_status,
+            Span::styled(ring_str, param_style(0, ring_color)),
             Span::styled("  Freq: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{:.0} Hz", ring_freq), Style::default().fg(Color::Cyan)),
+            Span::styled(format!("{:.0} Hz", ring_freq), param_style(1, Color::Cyan)),
             Span::styled("  Mix: ", Style::default().fg(Color::DarkGray)),
             Span::styled(format!("{:.0}%", ring_mix * 100.0), Style::default().fg(Color::White)),
         ]),
         Line::from(vec![
             Span::styled(" FM:       ", Style::default().fg(Color::DarkGray)),
-            fm_status,
+            Span::styled(fm_str, param_style(2, fm_color)),
             Span::styled("  Amount: ", Style::default().fg(Color::DarkGray)),
             Span::styled(format!("{:.2}", fm_amount), Style::default().fg(Color::Cyan)),
             Span::styled("  Ratio: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{:.2}", fm_ratio), Style::default().fg(Color::White)),
+            Span::styled(format!("{:.2}", fm_ratio), param_style(3, Color::White)),
             Span::styled("  (OSC2→OSC1)", Style::default().fg(Color::DarkGray)),
         ]),
         Line::from(""),
         Line::from(vec![
-            Span::styled(" R", Style::default().fg(Color::Yellow)),
-            Span::styled(" ring ", Style::default().fg(Color::DarkGray)),
-            Span::styled("F", Style::default().fg(Color::Yellow)),
-            Span::styled(" fm ", Style::default().fg(Color::DarkGray)),
-            Span::styled("</>", Style::default().fg(Color::Yellow)),
-            Span::styled(" amount ", Style::default().fg(Color::DarkGray)),
-            Span::styled("^/v", Style::default().fg(Color::Yellow)),
-            Span::styled(" ratio/freq ", Style::default().fg(Color::DarkGray)),
-            Span::styled("Esc", Style::default().fg(Color::Yellow)),
-            Span::styled(" close", Style::default().fg(Color::DarkGray)),
+            Span::styled(if edit_mode { " </>  " } else { " Enter " }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { "select " } else { "edit   " }, Style::default().fg(Color::DarkGray)),
+            Span::styled(if edit_mode { "^/v" } else { "Tab" }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { " modify " } else { " next   " }, Style::default().fg(Color::DarkGray)),
+            Span::styled(if edit_mode { "Esc" } else { "" }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { " back" } else { "" }, Style::default().fg(Color::DarkGray)),
         ]),
     ];
 
+    let border_color = if edit_mode { Color::Yellow } else { Color::Magenta };
     let modal_widget = Paragraph::new(content).block(
         Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Magenta))
-            .title(" Modulation ")
-            .title_style(Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
+            .border_style(Style::default().fg(border_color))
+            .title(if edit_mode { " Modulation [EDIT] " } else { " Modulation " })
+            .title_style(Style::default().fg(border_color).add_modifier(Modifier::BOLD)),
     );
     frame.render_widget(modal_widget, area);
 }
 
-fn draw_effects_modal(frame: &mut Frame, area: Rect, app: &App) {
+fn draw_effects_ext_modal(frame: &mut Frame, area: Rect, app: &App, edit_mode: bool, param_idx: usize) {
     // Chorus
     let chorus_enabled = app.chorus_enabled();
     let chorus_rate = app.chorus_rate();
     let chorus_depth = app.chorus_depth();
     let chorus_voices = app.chorus_voices();
-
-    let chorus_status = if chorus_enabled {
-        Span::styled("On", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
-    } else {
-        Span::styled("Off", Style::default().fg(Color::Red))
-    };
 
     // Phaser
     let phaser_enabled = app.phaser_enabled();
@@ -904,27 +1256,34 @@ fn draw_effects_modal(frame: &mut Frame, area: Rect, app: &App) {
     let phaser_depth = app.phaser_depth();
     let phaser_stages = app.phaser_stages();
 
-    let phaser_status = if phaser_enabled {
-        Span::styled("On", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
-    } else {
-        Span::styled("Off", Style::default().fg(Color::Red))
-    };
-
     // Bitcrusher
     let crush_enabled = app.bitcrusher_enabled();
     let crush_bits = app.bitcrusher_bits();
     let crush_rate_div = app.bitcrusher_rate_div();
 
-    let crush_status = if crush_enabled {
-        Span::styled("On", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
-    } else {
-        Span::styled("Off", Style::default().fg(Color::Red))
+    // Helper for parameter highlighting
+    let param_style = |idx: usize, base_color: Color| -> Style {
+        if edit_mode && param_idx == idx {
+            Style::default().fg(Color::Black).bg(base_color).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(base_color)
+        }
     };
 
+    let chorus_color = if chorus_enabled { Color::Green } else { Color::Red };
+    let chorus_str = if chorus_enabled { "On" } else { "Off" };
+
+    let phaser_color = if phaser_enabled { Color::Green } else { Color::Red };
+    let phaser_str = if phaser_enabled { "On" } else { "Off" };
+
+    let crush_color = if crush_enabled { Color::Green } else { Color::Red };
+    let crush_str = if crush_enabled { "On" } else { "Off" };
+
+    // Params: 0=Chorus, 1=Phaser, 2=Bitcrusher
     let content = vec![
         Line::from(vec![
             Span::styled(" Chorus:    ", Style::default().fg(Color::DarkGray)),
-            chorus_status,
+            Span::styled(chorus_str, param_style(0, chorus_color)),
             Span::styled("  Rate: ", Style::default().fg(Color::DarkGray)),
             Span::styled(format!("{:.1}Hz", chorus_rate), Style::default().fg(Color::Cyan)),
             Span::styled("  Depth: ", Style::default().fg(Color::DarkGray)),
@@ -934,7 +1293,7 @@ fn draw_effects_modal(frame: &mut Frame, area: Rect, app: &App) {
         ]),
         Line::from(vec![
             Span::styled(" Phaser:    ", Style::default().fg(Color::DarkGray)),
-            phaser_status,
+            Span::styled(phaser_str, param_style(1, phaser_color)),
             Span::styled("  Rate: ", Style::default().fg(Color::DarkGray)),
             Span::styled(format!("{:.1}Hz", phaser_rate), Style::default().fg(Color::Cyan)),
             Span::styled("  Depth: ", Style::default().fg(Color::DarkGray)),
@@ -944,7 +1303,7 @@ fn draw_effects_modal(frame: &mut Frame, area: Rect, app: &App) {
         ]),
         Line::from(vec![
             Span::styled(" Bitcrusher:", Style::default().fg(Color::DarkGray)),
-            crush_status,
+            Span::styled(crush_str, param_style(2, crush_color)),
             Span::styled("  Bits: ", Style::default().fg(Color::DarkGray)),
             Span::styled(format!("{}", crush_bits), Style::default().fg(Color::Cyan)),
             Span::styled("  SR Div: ", Style::default().fg(Color::DarkGray)),
@@ -952,28 +1311,27 @@ fn draw_effects_modal(frame: &mut Frame, area: Rect, app: &App) {
         ]),
         Line::from(""),
         Line::from(vec![
-            Span::styled(" C", Style::default().fg(Color::Yellow)),
-            Span::styled(" chorus ", Style::default().fg(Color::DarkGray)),
-            Span::styled("P", Style::default().fg(Color::Yellow)),
-            Span::styled(" phaser ", Style::default().fg(Color::DarkGray)),
-            Span::styled("B", Style::default().fg(Color::Yellow)),
-            Span::styled(" crush ", Style::default().fg(Color::DarkGray)),
-            Span::styled("Esc", Style::default().fg(Color::Yellow)),
-            Span::styled(" close", Style::default().fg(Color::DarkGray)),
+            Span::styled(if edit_mode { " </>  " } else { " Enter " }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { "select " } else { "edit   " }, Style::default().fg(Color::DarkGray)),
+            Span::styled(if edit_mode { "^/v" } else { "Tab" }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { " toggle " } else { " next   " }, Style::default().fg(Color::DarkGray)),
+            Span::styled(if edit_mode { "Esc" } else { "" }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { " back" } else { "" }, Style::default().fg(Color::DarkGray)),
         ]),
     ];
 
+    let border_color = if edit_mode { Color::Cyan } else { Color::Yellow };
     let modal_widget = Paragraph::new(content).block(
         Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Yellow))
-            .title(" Effects (Extended) ")
-            .title_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            .border_style(Style::default().fg(border_color))
+            .title(if edit_mode { " Effects+ [EDIT] " } else { " Effects (Extended) " })
+            .title_style(Style::default().fg(border_color).add_modifier(Modifier::BOLD)),
     );
     frame.render_widget(modal_widget, area);
 }
 
-fn draw_performance_modal(frame: &mut Frame, area: Rect, app: &App) {
+fn draw_performance_modal(frame: &mut Frame, area: Rect, app: &App, edit_mode: bool, param_idx: usize) {
     use crate::audio::PortamentoMode;
 
     // Portamento
@@ -981,22 +1339,10 @@ fn draw_performance_modal(frame: &mut Frame, area: Rect, app: &App) {
     let portamento_time = app.portamento_time();
     let porta_enabled = portamento_mode != PortamentoMode::Off;
 
-    let porta_status = if porta_enabled {
-        Span::styled(portamento_mode.name(), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
-    } else {
-        Span::styled("Off", Style::default().fg(Color::Red))
-    };
-
     // Noise
     let noise_enabled = app.noise_enabled();
     let noise_type = app.noise_type();
     let noise_level = app.noise_level();
-
-    let noise_status = if noise_enabled {
-        Span::styled("On", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
-    } else {
-        Span::styled("Off", Style::default().fg(Color::Red))
-    };
 
     // Arpeggiator
     let arp_enabled = app.arpeggiator_enabled();
@@ -1006,64 +1352,72 @@ fn draw_performance_modal(frame: &mut Frame, area: Rect, app: &App) {
     let arp_octaves = app.arpeggiator_octaves();
     let arp_gate = app.arpeggiator_gate();
 
-    let arp_status = if arp_enabled {
-        Span::styled("On", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
-    } else {
-        Span::styled("Off", Style::default().fg(Color::Red))
+    // Helper for parameter highlighting
+    let param_style = |idx: usize, base_color: Color| -> Style {
+        if edit_mode && param_idx == idx {
+            Style::default().fg(Color::Black).bg(base_color).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(base_color)
+        }
     };
 
+    let porta_color = if porta_enabled { Color::Green } else { Color::Red };
+    let porta_str = if porta_enabled { portamento_mode.name() } else { "Off" };
+
+    let noise_color = if noise_enabled { Color::Green } else { Color::Red };
+    let noise_str = if noise_enabled { "On" } else { "Off" };
+
+    let arp_color = if arp_enabled { Color::Green } else { Color::Red };
+    let arp_str = if arp_enabled { "On" } else { "Off" };
+
+    // Params: 0=Porta, 1=Noise, 2=NoiseType, 3=Arp, 4=Pattern, 5=Octaves
     let content = vec![
         Line::from(vec![
             Span::styled(" Portamento: ", Style::default().fg(Color::DarkGray)),
-            porta_status,
+            Span::styled(porta_str, param_style(0, porta_color)),
             Span::styled("  Time: ", Style::default().fg(Color::DarkGray)),
             Span::styled(format!("{:.0}ms", portamento_time), Style::default().fg(Color::White)),
         ]),
         Line::from(vec![
             Span::styled(" Noise:      ", Style::default().fg(Color::DarkGray)),
-            noise_status,
+            Span::styled(noise_str, param_style(1, noise_color)),
             Span::styled("  Type: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(noise_type.name(), Style::default().fg(Color::Cyan)),
+            Span::styled(noise_type.name(), param_style(2, Color::Cyan)),
             Span::styled("  Level: ", Style::default().fg(Color::DarkGray)),
             Span::styled(format!("{:.0}%", noise_level * 100.0), Style::default().fg(Color::White)),
         ]),
         Line::from(vec![
             Span::styled(" Arpeggiator:", Style::default().fg(Color::DarkGray)),
-            arp_status,
+            Span::styled(arp_str, param_style(3, arp_color)),
             Span::styled("  BPM: ", Style::default().fg(Color::DarkGray)),
             Span::styled(format!("{:.0}", arp_bpm), Style::default().fg(Color::Cyan)),
             Span::styled("  ", Style::default().fg(Color::DarkGray)),
             Span::styled(arp_division.name(), Style::default().fg(Color::White)),
             Span::styled("  ", Style::default().fg(Color::DarkGray)),
-            Span::styled(arp_pattern.name(), Style::default().fg(Color::Magenta)),
+            Span::styled(arp_pattern.name(), param_style(4, Color::Magenta)),
             Span::styled("  Oct: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{}", arp_octaves), Style::default().fg(Color::White)),
+            Span::styled(format!("{}", arp_octaves), param_style(5, Color::White)),
             Span::styled("  Gate: ", Style::default().fg(Color::DarkGray)),
             Span::styled(format!("{:.0}%", arp_gate * 100.0), Style::default().fg(Color::White)),
         ]),
         Line::from(""),
         Line::from(vec![
-            Span::styled(" G", Style::default().fg(Color::Yellow)),
-            Span::styled(" glide ", Style::default().fg(Color::DarkGray)),
-            Span::styled("N", Style::default().fg(Color::Yellow)),
-            Span::styled(" noise ", Style::default().fg(Color::DarkGray)),
-            Span::styled("A", Style::default().fg(Color::Yellow)),
-            Span::styled(" arp ", Style::default().fg(Color::DarkGray)),
-            Span::styled("D", Style::default().fg(Color::Yellow)),
-            Span::styled(" div ", Style::default().fg(Color::DarkGray)),
-            Span::styled("P", Style::default().fg(Color::Yellow)),
-            Span::styled(" pattern ", Style::default().fg(Color::DarkGray)),
-            Span::styled("O", Style::default().fg(Color::Yellow)),
-            Span::styled(" oct", Style::default().fg(Color::DarkGray)),
+            Span::styled(if edit_mode { " </>  " } else { " Enter " }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { "select " } else { "edit   " }, Style::default().fg(Color::DarkGray)),
+            Span::styled(if edit_mode { "^/v" } else { "Tab" }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { " modify " } else { " next   " }, Style::default().fg(Color::DarkGray)),
+            Span::styled(if edit_mode { "Esc" } else { "" }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { " back" } else { "" }, Style::default().fg(Color::DarkGray)),
         ]),
     ];
 
+    let border_color = if edit_mode { Color::Yellow } else { Color::Green };
     let modal_widget = Paragraph::new(content).block(
         Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Green))
-            .title(" Performance ")
-            .title_style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            .border_style(Style::default().fg(border_color))
+            .title(if edit_mode { " Performance [EDIT] " } else { " Performance " })
+            .title_style(Style::default().fg(border_color).add_modifier(Modifier::BOLD)),
     );
     frame.render_widget(modal_widget, area);
 }

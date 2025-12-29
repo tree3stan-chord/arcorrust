@@ -12,18 +12,22 @@ use std::time::Instant;
 /// How long to hold a note before auto-release (for terminals without key release support)
 const NOTE_AUTO_RELEASE_MS: u128 = 200;
 
-/// Modal panel for extended controls
+/// Modal panel for extended controls (always one active)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ModalPanel {
-    /// No modal open
+    /// Oscillator settings (sidebar)
     #[default]
-    None,
+    Oscillator,
+    /// Filter settings (sidebar)
+    Filter,
+    /// Basic effects settings (sidebar - Distortion, Delay, Reverb)
+    EffectsBasic,
     /// LFO configuration
     LFO,
     /// Modulation settings (Ring mod, FM)
     Modulation,
-    /// Effects settings (Chorus, Phaser, Bitcrusher)
-    Effects,
+    /// Extended effects (Chorus, Phaser, Bitcrusher)
+    EffectsExt,
     /// Performance settings (Portamento, Arpeggiator, Noise)
     Performance,
 }
@@ -32,39 +36,60 @@ impl ModalPanel {
     /// Cycle to next modal
     pub fn next(&self) -> Self {
         match self {
-            ModalPanel::None => ModalPanel::LFO,
+            ModalPanel::Oscillator => ModalPanel::Filter,
+            ModalPanel::Filter => ModalPanel::EffectsBasic,
+            ModalPanel::EffectsBasic => ModalPanel::LFO,
             ModalPanel::LFO => ModalPanel::Modulation,
-            ModalPanel::Modulation => ModalPanel::Effects,
-            ModalPanel::Effects => ModalPanel::Performance,
-            ModalPanel::Performance => ModalPanel::None,
+            ModalPanel::Modulation => ModalPanel::EffectsExt,
+            ModalPanel::EffectsExt => ModalPanel::Performance,
+            ModalPanel::Performance => ModalPanel::Oscillator,
         }
     }
 
     /// Cycle to previous modal
     pub fn prev(&self) -> Self {
         match self {
-            ModalPanel::None => ModalPanel::Performance,
-            ModalPanel::LFO => ModalPanel::None,
+            ModalPanel::Oscillator => ModalPanel::Performance,
+            ModalPanel::Filter => ModalPanel::Oscillator,
+            ModalPanel::EffectsBasic => ModalPanel::Filter,
+            ModalPanel::LFO => ModalPanel::EffectsBasic,
             ModalPanel::Modulation => ModalPanel::LFO,
-            ModalPanel::Effects => ModalPanel::Modulation,
-            ModalPanel::Performance => ModalPanel::Effects,
+            ModalPanel::EffectsExt => ModalPanel::Modulation,
+            ModalPanel::Performance => ModalPanel::EffectsExt,
         }
     }
 
     /// Get modal name for display
     pub fn name(&self) -> &'static str {
         match self {
-            ModalPanel::None => "None",
+            ModalPanel::Oscillator => "Oscillator",
+            ModalPanel::Filter => "Filter",
+            ModalPanel::EffectsBasic => "Effects",
             ModalPanel::LFO => "LFO",
             ModalPanel::Modulation => "Modulation",
-            ModalPanel::Effects => "Effects",
+            ModalPanel::EffectsExt => "FX+",
             ModalPanel::Performance => "Performance",
         }
     }
 
-    /// Check if any modal is open
-    pub fn is_open(&self) -> bool {
-        !matches!(self, ModalPanel::None)
+    /// Check if this is a sidebar panel
+    #[allow(dead_code)]
+    pub fn is_sidebar(&self) -> bool {
+        matches!(self, ModalPanel::Oscillator | ModalPanel::Filter | ModalPanel::EffectsBasic)
+    }
+
+    /// All modal panels for iteration
+    #[allow(dead_code)]
+    pub fn all() -> &'static [ModalPanel] {
+        &[
+            ModalPanel::Oscillator,
+            ModalPanel::Filter,
+            ModalPanel::EffectsBasic,
+            ModalPanel::LFO,
+            ModalPanel::Modulation,
+            ModalPanel::EffectsExt,
+            ModalPanel::Performance,
+        ]
     }
 }
 
@@ -154,6 +179,10 @@ pub struct App {
     viz_mode: VizMode,
     /// Current modal panel
     modal_panel: ModalPanel,
+    /// Whether we're in edit mode (inside a panel editing parameters)
+    edit_mode: bool,
+    /// Current parameter index within the active panel
+    param_index: usize,
     /// Arpeggiator
     arpeggiator: Arpeggiator,
     /// Last tick time for delta calculation
@@ -177,6 +206,8 @@ impl App {
             voice_count: 0,
             cpu_usage: 0.0,
             preset_modified: false,
+            edit_mode: false,
+            param_index: 0,
             layout_mode: LayoutMode::default(),
             viz_mode: VizMode::default(),
             modal_panel: ModalPanel::default(),
@@ -565,6 +596,7 @@ impl App {
     }
 
     /// Adjust bitcrusher bit depth
+    #[allow(dead_code)]
     pub fn adjust_bitcrusher_bits(&mut self, delta: i8) {
         self.audio_engine.adjust_bitcrusher_bits(delta);
     }
@@ -575,6 +607,7 @@ impl App {
     }
 
     /// Adjust bitcrusher sample rate divider
+    #[allow(dead_code)]
     pub fn adjust_bitcrusher_rate_div(&mut self, delta: i8) {
         self.audio_engine.adjust_bitcrusher_rate_div(delta);
     }
@@ -690,6 +723,7 @@ impl App {
     }
 
     /// Adjust FM amount
+    #[allow(dead_code)]
     pub fn adjust_fm_amount(&mut self, delta: f32) {
         self.audio_engine.adjust_fm_amount(delta);
     }
@@ -871,21 +905,145 @@ impl App {
     /// Cycle to next modal
     pub fn next_modal(&mut self) {
         self.modal_panel = self.modal_panel.next();
+        self.param_index = 0;
+        self.edit_mode = false; // Exit edit mode when changing panels
     }
 
     /// Cycle to previous modal
     pub fn prev_modal(&mut self) {
         self.modal_panel = self.modal_panel.prev();
+        self.param_index = 0;
+        self.edit_mode = false;
     }
 
-    /// Close current modal
-    pub fn close_modal(&mut self) {
-        self.modal_panel = ModalPanel::None;
+    // === Edit mode controls ===
+
+    /// Check if in edit mode (inside a panel)
+    pub fn edit_mode(&self) -> bool {
+        self.edit_mode
     }
 
-    /// Check if any modal is open
-    pub fn modal_is_open(&self) -> bool {
-        self.modal_panel.is_open()
+    /// Get current parameter index
+    pub fn param_index(&self) -> usize {
+        self.param_index
+    }
+
+    /// Enter edit mode for current panel
+    pub fn enter_edit_mode(&mut self) {
+        self.edit_mode = true;
+        self.param_index = 0;
+    }
+
+    /// Exit edit mode (back to panel navigation)
+    pub fn exit_edit_mode(&mut self) {
+        self.edit_mode = false;
+    }
+
+    /// Get parameter count for current modal panel
+    pub fn param_count(&self) -> usize {
+        match self.modal_panel {
+            ModalPanel::Oscillator => 4,    // Wave1, Osc2, Wave2, Mix
+            ModalPanel::Filter => 5,         // On/Off, Type, Cutoff, Resonance, EnvAmt
+            ModalPanel::EffectsBasic => 3,   // Distortion, Delay, Reverb
+            ModalPanel::LFO => 4,            // On/Off, Wave, Rate, Depth
+            ModalPanel::Modulation => 4,     // Ring, RingFreq, FM, FMRatio
+            ModalPanel::EffectsExt => 3,     // Chorus, Phaser, Bitcrusher
+            ModalPanel::Performance => 6,    // Porta, Noise, NoiseType, Arp, Pattern, Octaves
+        }
+    }
+
+    /// Move to next parameter (with wrap)
+    pub fn next_param(&mut self) {
+        let count = self.param_count();
+        self.param_index = (self.param_index + 1) % count;
+    }
+
+    /// Move to previous parameter (with wrap)
+    pub fn prev_param(&mut self) {
+        let count = self.param_count();
+        if self.param_index == 0 {
+            self.param_index = count - 1;
+        } else {
+            self.param_index -= 1;
+        }
+    }
+
+    /// Modify the current parameter (up = increase/toggle, down = decrease)
+    /// For toggles and cycles, up cycles forward and down cycles backward (or toggles)
+    pub fn modify_current_param(&mut self, increase: bool) {
+        match self.modal_panel {
+            ModalPanel::Oscillator => {
+                // Params: 0=Wave1, 1=Osc2 on/off, 2=Wave2, 3=Mix
+                match self.param_index {
+                    0 => self.next_osc1_waveform(),
+                    1 => self.toggle_osc2(),
+                    2 => self.next_osc2_waveform(),
+                    3 => { /* Mix - could add adjust_osc_mix if needed */ }
+                    _ => {}
+                }
+            }
+            ModalPanel::Filter => {
+                // Params: 0=On/Off, 1=Type, 2=Cutoff, 3=Resonance, 4=EnvAmt
+                match self.param_index {
+                    0 => self.toggle_filter(),
+                    1 => self.next_filter_type(),
+                    2 => self.adjust_filter_cutoff(if increase { 1.1 } else { 0.9 }),
+                    3 => self.adjust_filter_resonance(if increase { 0.2 } else { -0.2 }),
+                    4 => self.adjust_filter_env_amount(if increase { 0.1 } else { -0.1 }),
+                    _ => {}
+                }
+            }
+            ModalPanel::EffectsBasic => {
+                // Params: 0=Distortion, 1=Delay, 2=Reverb
+                match self.param_index {
+                    0 => self.toggle_distortion(),
+                    1 => self.toggle_delay(),
+                    2 => self.toggle_reverb(),
+                    _ => {}
+                }
+            }
+            ModalPanel::LFO => {
+                // Params: 0=On/Off, 1=Wave, 2=Rate, 3=Depth
+                match self.param_index {
+                    0 => self.toggle_lfo(),
+                    1 => self.next_lfo_waveform(),
+                    2 => self.adjust_lfo_rate(if increase { 0.5 } else { -0.5 }),
+                    3 => self.adjust_lfo_depth(if increase { 0.1 } else { -0.1 }),
+                    _ => {}
+                }
+            }
+            ModalPanel::Modulation => {
+                // Params: 0=Ring on/off, 1=Ring Freq, 2=FM on/off, 3=FM Ratio
+                match self.param_index {
+                    0 => self.toggle_ring_mod(),
+                    1 => self.adjust_ring_mod_freq(if increase { 20.0 } else { -20.0 }),
+                    2 => self.toggle_fm(),
+                    3 => self.adjust_fm_ratio(if increase { 0.25 } else { -0.25 }),
+                    _ => {}
+                }
+            }
+            ModalPanel::EffectsExt => {
+                // Params: 0=Chorus, 1=Phaser, 2=Bitcrusher
+                match self.param_index {
+                    0 => self.toggle_chorus(),
+                    1 => self.toggle_phaser(),
+                    2 => self.toggle_bitcrusher(),
+                    _ => {}
+                }
+            }
+            ModalPanel::Performance => {
+                // Params: 0=Porta, 1=Noise, 2=NoiseType, 3=Arp, 4=Pattern, 5=Octaves
+                match self.param_index {
+                    0 => self.next_portamento_mode(),
+                    1 => self.toggle_noise(),
+                    2 => self.next_noise_type(),
+                    3 => self.toggle_arpeggiator(),
+                    4 => self.next_arpeggiator_pattern(),
+                    5 => self.adjust_arpeggiator_octaves(if increase { 1 } else { -1 }),
+                    _ => {}
+                }
+            }
+        }
     }
 
     // === LFO controls ===
@@ -972,6 +1130,7 @@ impl App {
     }
 
     /// Adjust noise level
+    #[allow(dead_code)]
     pub fn adjust_noise_level(&mut self, delta: f32) {
         self.audio_engine.adjust_noise_level(delta);
     }
@@ -994,6 +1153,7 @@ impl App {
     }
 
     /// Adjust portamento time
+    #[allow(dead_code)]
     pub fn adjust_portamento_time(&mut self, delta: f32) {
         self.audio_engine.adjust_portamento_time(delta);
     }
@@ -1030,6 +1190,7 @@ impl App {
     }
 
     /// Adjust arpeggiator BPM
+    #[allow(dead_code)]
     pub fn adjust_arpeggiator_bpm(&mut self, delta: f32) {
         self.arpeggiator.adjust_bpm(delta);
     }
@@ -1070,6 +1231,7 @@ impl App {
     }
 
     /// Adjust arpeggiator gate
+    #[allow(dead_code)]
     pub fn adjust_arpeggiator_gate(&mut self, delta: f32) {
         self.arpeggiator.adjust_gate(delta);
     }

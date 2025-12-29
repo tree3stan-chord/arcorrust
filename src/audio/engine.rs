@@ -1222,6 +1222,7 @@ impl AudioEngine {
     }
 
     /// Adjust bitcrusher bit depth
+    #[allow(dead_code)]
     pub fn adjust_bitcrusher_bits(&mut self, delta: i8) {
         self.state.write().effects.bitcrusher.adjust_bit_depth(delta);
     }
@@ -1238,6 +1239,7 @@ impl AudioEngine {
     }
 
     /// Adjust bitcrusher sample rate divider
+    #[allow(dead_code)]
     pub fn adjust_bitcrusher_rate_div(&mut self, delta: i8) {
         self.state.write().effects.bitcrusher.adjust_sample_rate_div(delta);
     }
@@ -1458,6 +1460,7 @@ impl AudioEngine {
     }
 
     /// Adjust FM amount
+    #[allow(dead_code)]
     pub fn adjust_fm_amount(&mut self, delta: f32) {
         let mut state = self.state.write();
         state.fm_amount = (state.fm_amount + delta).clamp(0.0, 2.0);
@@ -1680,6 +1683,7 @@ impl AudioEngine {
     }
 
     /// Adjust noise level
+    #[allow(dead_code)]
     pub fn adjust_noise_level(&mut self, delta: f32) {
         self.state.write().noise.adjust_level(delta);
     }
@@ -1714,6 +1718,7 @@ impl AudioEngine {
     }
 
     /// Adjust portamento time
+    #[allow(dead_code)]
     pub fn adjust_portamento_time(&mut self, delta: f32) {
         let mut state = self.state.write();
         state.portamento_time = (state.portamento_time + delta).clamp(0.0, 2000.0);
