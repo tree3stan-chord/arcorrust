@@ -1009,6 +1009,138 @@ impl AudioEngine {
         state.filter_env_amount = (state.filter_env_amount + delta).clamp(0.0, 1.0);
     }
 
+    // === Amplitude Envelope ADSR controls ===
+
+    /// Get amplitude attack time in seconds
+    pub fn amp_attack(&self) -> f32 {
+        self.state.read().attack
+    }
+
+    /// Set amplitude attack time in seconds
+    pub fn set_amp_attack(&mut self, time: f32) {
+        self.state.write().attack = time.clamp(0.001, 5.0);
+    }
+
+    /// Adjust amplitude attack time
+    pub fn adjust_amp_attack(&mut self, delta: f32) {
+        let mut state = self.state.write();
+        state.attack = (state.attack + delta).clamp(0.001, 5.0);
+    }
+
+    /// Get amplitude decay time in seconds
+    pub fn amp_decay(&self) -> f32 {
+        self.state.read().decay
+    }
+
+    /// Set amplitude decay time in seconds
+    pub fn set_amp_decay(&mut self, time: f32) {
+        self.state.write().decay = time.clamp(0.001, 5.0);
+    }
+
+    /// Adjust amplitude decay time
+    pub fn adjust_amp_decay(&mut self, delta: f32) {
+        let mut state = self.state.write();
+        state.decay = (state.decay + delta).clamp(0.001, 5.0);
+    }
+
+    /// Get amplitude sustain level (0.0 - 1.0)
+    pub fn amp_sustain(&self) -> f32 {
+        self.state.read().sustain
+    }
+
+    /// Set amplitude sustain level
+    pub fn set_amp_sustain(&mut self, level: f32) {
+        self.state.write().sustain = level.clamp(0.0, 1.0);
+    }
+
+    /// Adjust amplitude sustain level
+    pub fn adjust_amp_sustain(&mut self, delta: f32) {
+        let mut state = self.state.write();
+        state.sustain = (state.sustain + delta).clamp(0.0, 1.0);
+    }
+
+    /// Get amplitude release time in seconds
+    pub fn amp_release(&self) -> f32 {
+        self.state.read().release
+    }
+
+    /// Set amplitude release time in seconds
+    pub fn set_amp_release(&mut self, time: f32) {
+        self.state.write().release = time.clamp(0.001, 5.0);
+    }
+
+    /// Adjust amplitude release time
+    pub fn adjust_amp_release(&mut self, delta: f32) {
+        let mut state = self.state.write();
+        state.release = (state.release + delta).clamp(0.001, 5.0);
+    }
+
+    // === Filter Envelope ADSR controls ===
+
+    /// Get filter attack time in seconds
+    pub fn filter_attack(&self) -> f32 {
+        self.state.read().filter_attack
+    }
+
+    /// Set filter attack time in seconds
+    pub fn set_filter_attack(&mut self, time: f32) {
+        self.state.write().filter_attack = time.clamp(0.001, 5.0);
+    }
+
+    /// Adjust filter attack time
+    pub fn adjust_filter_attack(&mut self, delta: f32) {
+        let mut state = self.state.write();
+        state.filter_attack = (state.filter_attack + delta).clamp(0.001, 5.0);
+    }
+
+    /// Get filter decay time in seconds
+    pub fn filter_decay(&self) -> f32 {
+        self.state.read().filter_decay
+    }
+
+    /// Set filter decay time in seconds
+    pub fn set_filter_decay(&mut self, time: f32) {
+        self.state.write().filter_decay = time.clamp(0.001, 5.0);
+    }
+
+    /// Adjust filter decay time
+    pub fn adjust_filter_decay(&mut self, delta: f32) {
+        let mut state = self.state.write();
+        state.filter_decay = (state.filter_decay + delta).clamp(0.001, 5.0);
+    }
+
+    /// Get filter sustain level (0.0 - 1.0)
+    pub fn filter_sustain(&self) -> f32 {
+        self.state.read().filter_sustain
+    }
+
+    /// Set filter sustain level
+    pub fn set_filter_sustain(&mut self, level: f32) {
+        self.state.write().filter_sustain = level.clamp(0.0, 1.0);
+    }
+
+    /// Adjust filter sustain level
+    pub fn adjust_filter_sustain(&mut self, delta: f32) {
+        let mut state = self.state.write();
+        state.filter_sustain = (state.filter_sustain + delta).clamp(0.0, 1.0);
+    }
+
+    /// Get filter release time in seconds
+    pub fn filter_release(&self) -> f32 {
+        self.state.read().filter_release
+    }
+
+    /// Set filter release time in seconds
+    pub fn set_filter_release(&mut self, time: f32) {
+        self.state.write().filter_release = time.clamp(0.001, 5.0);
+    }
+
+    /// Adjust filter release time
+    pub fn adjust_filter_release(&mut self, delta: f32) {
+        let mut state = self.state.write();
+        state.filter_release = (state.filter_release + delta).clamp(0.001, 5.0);
+    }
+
     // === Effects controls ===
 
     // -- Distortion --
