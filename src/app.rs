@@ -634,9 +634,18 @@ impl App {
     }
 
     /// Get delay feedback
-    #[allow(dead_code)]
     pub fn delay_feedback(&self) -> f32 {
         self.audio_engine.delay_feedback()
+    }
+
+    /// Get delay mix
+    pub fn delay_mix(&self) -> f32 {
+        self.audio_engine.delay_mix()
+    }
+
+    /// Adjust delay mix
+    pub fn adjust_delay_mix(&mut self, delta: f32) {
+        self.audio_engine.adjust_delay_mix(delta);
     }
 
     // -- Reverb --
@@ -701,9 +710,18 @@ impl App {
     }
 
     /// Adjust bitcrusher sample rate divider
-    #[allow(dead_code)]
     pub fn adjust_bitcrusher_rate_div(&mut self, delta: i8) {
         self.audio_engine.adjust_bitcrusher_rate_div(delta);
+    }
+
+    /// Get bitcrusher mix
+    pub fn bitcrusher_mix(&self) -> f32 {
+        self.audio_engine.bitcrusher_mix()
+    }
+
+    /// Adjust bitcrusher mix
+    pub fn adjust_bitcrusher_mix(&mut self, delta: f32) {
+        self.audio_engine.adjust_bitcrusher_mix(delta);
     }
 
     // -- Chorus --
@@ -743,6 +761,21 @@ impl App {
     /// Get chorus voices
     pub fn chorus_voices(&self) -> u8 {
         self.audio_engine.chorus_voices()
+    }
+
+    /// Adjust chorus voices
+    pub fn adjust_chorus_voices(&mut self, delta: i8) {
+        self.audio_engine.adjust_chorus_voices(delta);
+    }
+
+    /// Get chorus mix
+    pub fn chorus_mix(&self) -> f32 {
+        self.audio_engine.chorus_mix()
+    }
+
+    /// Adjust chorus mix
+    pub fn adjust_chorus_mix(&mut self, delta: f32) {
+        self.audio_engine.adjust_chorus_mix(delta);
     }
 
     // -- Phaser --
@@ -797,6 +830,11 @@ impl App {
     /// Get ring mod mix
     pub fn ring_mod_mix(&self) -> f32 {
         self.audio_engine.ring_mod_mix()
+    }
+
+    /// Adjust ring mod mix
+    pub fn adjust_ring_mod_mix(&mut self, delta: f32) {
+        self.audio_engine.adjust_ring_mod_mix(delta);
     }
 
     // -- FM Synthesis --

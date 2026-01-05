@@ -1387,9 +1387,15 @@ impl AudioEngine {
     }
 
     /// Set bitcrusher mix
-    #[allow(dead_code)]
     pub fn set_bitcrusher_mix(&mut self, mix: f32) {
         self.state.write().effects.bitcrusher.set_mix(mix);
+    }
+
+    /// Adjust bitcrusher mix
+    pub fn adjust_bitcrusher_mix(&mut self, delta: f32) {
+        let mut state = self.state.write();
+        let current = state.effects.bitcrusher.mix();
+        state.effects.bitcrusher.set_mix((current + delta).clamp(0.0, 1.0));
     }
 
     // -- Chorus --
@@ -1454,21 +1460,33 @@ impl AudioEngine {
     }
 
     /// Set chorus voices
-    #[allow(dead_code)]
     pub fn set_chorus_voices(&mut self, voices: u8) {
         self.state.write().effects.chorus.set_voices(voices);
     }
 
+    /// Adjust chorus voices
+    pub fn adjust_chorus_voices(&mut self, delta: i8) {
+        let mut state = self.state.write();
+        let current = state.effects.chorus.voices() as i8;
+        let new_voices = (current + delta).clamp(1, 8) as u8;
+        state.effects.chorus.set_voices(new_voices);
+    }
+
     /// Get chorus mix
-    #[allow(dead_code)]
     pub fn chorus_mix(&self) -> f32 {
         self.state.read().effects.chorus.mix()
     }
 
     /// Set chorus mix
-    #[allow(dead_code)]
     pub fn set_chorus_mix(&mut self, mix: f32) {
         self.state.write().effects.chorus.set_mix(mix);
+    }
+
+    /// Adjust chorus mix
+    pub fn adjust_chorus_mix(&mut self, delta: f32) {
+        let mut state = self.state.write();
+        let current = state.effects.chorus.mix();
+        state.effects.chorus.set_mix((current + delta).clamp(0.0, 1.0));
     }
 
     // -- Phaser --
@@ -1560,9 +1578,15 @@ impl AudioEngine {
     }
 
     /// Set ring mod mix
-    #[allow(dead_code)]
     pub fn set_ring_mod_mix(&mut self, mix: f32) {
         self.state.write().effects.ring_mod.set_mix(mix);
+    }
+
+    /// Adjust ring mod mix
+    pub fn adjust_ring_mod_mix(&mut self, delta: f32) {
+        let mut state = self.state.write();
+        let current = state.effects.ring_mod.mix();
+        state.effects.ring_mod.set_mix((current + delta).clamp(0.0, 1.0));
     }
 
     // -- FM Synthesis --
