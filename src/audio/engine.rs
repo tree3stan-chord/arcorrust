@@ -901,13 +901,17 @@ impl AudioEngine {
     }
 
     /// Set oscillator mix (0.0 = all osc1, 1.0 = all osc2)
-    #[allow(dead_code)]
     pub fn set_osc_mix(&mut self, mix: f32) {
         self.state.write().osc_mix = mix.clamp(0.0, 1.0);
     }
 
+    /// Adjust oscillator mix
+    pub fn adjust_osc_mix(&mut self, delta: f32) {
+        let mut state = self.state.write();
+        state.osc_mix = (state.osc_mix + delta).clamp(0.0, 1.0);
+    }
+
     /// Get oscillator mix
-    #[allow(dead_code)]
     pub fn osc_mix(&self) -> f32 {
         self.state.read().osc_mix
     }

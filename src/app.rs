@@ -417,9 +417,13 @@ impl App {
     }
 
     /// Get oscillator mix
-    #[allow(dead_code)]
     pub fn osc_mix(&self) -> f32 {
         self.audio_engine.osc_mix()
+    }
+
+    /// Adjust oscillator mix
+    pub fn adjust_osc_mix(&mut self, delta: f32) {
+        self.audio_engine.adjust_osc_mix(delta);
     }
 
     // === Filter controls ===
@@ -1081,7 +1085,7 @@ impl App {
                     0 => self.next_osc1_waveform(),
                     1 => self.toggle_osc2(),
                     2 => self.next_osc2_waveform(),
-                    3 => { /* Mix - could add adjust_osc_mix if needed */ }
+                    3 => self.adjust_osc_mix(if increase { 0.1 } else { -0.1 }),
                     _ => {}
                 }
             }
