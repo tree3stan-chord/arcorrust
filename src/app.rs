@@ -886,6 +886,18 @@ impl App {
         self.audio_engine.set_filter_resonance(preset.filter_resonance);
         self.audio_engine.set_filter_env_amount(preset.filter_env_amount);
 
+        // Amplitude envelope
+        self.audio_engine.set_amp_attack(preset.amp_attack);
+        self.audio_engine.set_amp_decay(preset.amp_decay);
+        self.audio_engine.set_amp_sustain(preset.amp_sustain);
+        self.audio_engine.set_amp_release(preset.amp_release);
+
+        // Filter envelope
+        self.audio_engine.set_filter_attack(preset.filter_attack);
+        self.audio_engine.set_filter_decay(preset.filter_decay);
+        self.audio_engine.set_filter_sustain(preset.filter_sustain);
+        self.audio_engine.set_filter_release(preset.filter_release);
+
         // Distortion
         self.audio_engine.set_distortion_enabled(preset.distortion_enabled);
         self.audio_engine.set_distortion_type(preset.distortion_type.into());
