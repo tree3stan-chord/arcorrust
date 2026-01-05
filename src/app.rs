@@ -1086,13 +1086,13 @@ impl App {
     /// Get parameter count for current modal panel
     pub fn param_count(&self) -> usize {
         match self.modal_panel {
-            ModalPanel::Oscillator => 4,    // Wave1, Osc2, Wave2, Mix
+            ModalPanel::Oscillator => 4,     // Wave1, Osc2, Wave2, Mix
             ModalPanel::Filter => 5,         // On/Off, Type, Cutoff, Resonance, EnvAmt
             ModalPanel::Envelope => 8,       // AmpA, AmpD, AmpS, AmpR, FltA, FltD, FltS, FltR
-            ModalPanel::EffectsBasic => 3,   // Distortion, Delay, Reverb
+            ModalPanel::EffectsBasic => 6,   // Dist, Delay, DelTime, DelFB, DelMix, Reverb
             ModalPanel::LFO => 4,            // On/Off, Wave, Rate, Depth
-            ModalPanel::Modulation => 4,     // Ring, RingFreq, FM, FMRatio
-            ModalPanel::EffectsExt => 3,     // Chorus, Phaser, Bitcrusher
+            ModalPanel::Modulation => 5,     // Ring, RingFreq, RingMix, FM, FMRatio
+            ModalPanel::EffectsExt => 8,     // Chorus, ChRate, ChDepth, ChVoices, ChMix, Phaser, Bit, BitMix
             ModalPanel::Performance => 6,    // Porta, Noise, NoiseType, Arp, Pattern, Octaves
         }
     }
@@ -1139,11 +1139,14 @@ impl App {
                 }
             }
             ModalPanel::EffectsBasic => {
-                // Params: 0=Distortion, 1=Delay, 2=Reverb
+                // Params: 0=Dist, 1=Delay, 2=DelTime, 3=DelFB, 4=DelMix, 5=Reverb
                 match self.param_index {
                     0 => self.toggle_distortion(),
                     1 => self.toggle_delay(),
-                    2 => self.toggle_reverb(),
+                    2 => self.adjust_delay_time(if increase { 25.0 } else { -25.0 }),
+                    3 => self.adjust_delay_feedback(if increase { 0.05 } else { -0.05 }),
+                    4 => self.adjust_delay_mix(if increase { 0.1 } else { -0.1 }),
+                    5 => self.toggle_reverb(),
                     _ => {}
                 }
             }
@@ -1158,21 +1161,27 @@ impl App {
                 }
             }
             ModalPanel::Modulation => {
-                // Params: 0=Ring on/off, 1=Ring Freq, 2=FM on/off, 3=FM Ratio
+                // Params: 0=Ring on/off, 1=Ring Freq, 2=Ring Mix, 3=FM on/off, 4=FM Ratio
                 match self.param_index {
                     0 => self.toggle_ring_mod(),
                     1 => self.adjust_ring_mod_freq(if increase { 20.0 } else { -20.0 }),
-                    2 => self.toggle_fm(),
-                    3 => self.adjust_fm_ratio(if increase { 0.25 } else { -0.25 }),
+                    2 => self.adjust_ring_mod_mix(if increase { 0.1 } else { -0.1 }),
+                    3 => self.toggle_fm(),
+                    4 => self.adjust_fm_ratio(if increase { 0.25 } else { -0.25 }),
                     _ => {}
                 }
             }
             ModalPanel::EffectsExt => {
-                // Params: 0=Chorus, 1=Phaser, 2=Bitcrusher
+                // Params: 0=Chorus, 1=ChRate, 2=ChDepth, 3=ChVoices, 4=ChMix, 5=Phaser, 6=Bit, 7=BitMix
                 match self.param_index {
                     0 => self.toggle_chorus(),
-                    1 => self.toggle_phaser(),
-                    2 => self.toggle_bitcrusher(),
+                    1 => self.adjust_chorus_rate(if increase { 0.2 } else { -0.2 }),
+                    2 => self.adjust_chorus_depth(if increase { 0.1 } else { -0.1 }),
+                    3 => self.adjust_chorus_voices(if increase { 1 } else { -1 }),
+                    4 => self.adjust_chorus_mix(if increase { 0.1 } else { -0.1 }),
+                    5 => self.toggle_phaser(),
+                    6 => self.toggle_bitcrusher(),
+                    7 => self.adjust_bitcrusher_mix(if increase { 0.1 } else { -0.1 }),
                     _ => {}
                 }
             }

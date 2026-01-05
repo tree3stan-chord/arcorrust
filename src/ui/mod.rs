@@ -1162,6 +1162,8 @@ fn draw_effects_basic_modal(frame: &mut Frame, area: Rect, app: &App, edit_mode:
     let dist_type = app.distortion_type_name();
     let delay_enabled = app.delay_enabled();
     let delay_time = app.delay_time_ms();
+    let delay_fb = app.delay_feedback();
+    let delay_mix = app.delay_mix();
     let reverb_enabled = app.reverb_enabled();
     let reverb_mix = app.reverb_mix();
 
@@ -1178,33 +1180,40 @@ fn draw_effects_basic_modal(frame: &mut Frame, area: Rect, app: &App, edit_mode:
     let dist_str = if dist_enabled { format!("On ({})", dist_type) } else { "Off".to_string() };
 
     let delay_color = if delay_enabled { Color::Blue } else { Color::DarkGray };
-    let delay_str = if delay_enabled { format!("On ({:.0}ms)", delay_time) } else { "Off".to_string() };
+    let delay_str = if delay_enabled { "On" } else { "Off" };
 
     let reverb_color = if reverb_enabled { Color::Green } else { Color::DarkGray };
     let reverb_str = if reverb_enabled { format!("On ({:.0}%)", reverb_mix * 100.0) } else { "Off".to_string() };
 
-    // Params: 0=Distortion, 1=Delay, 2=Reverb
+    // Params: 0=Dist, 1=Delay, 2=DelTime, 3=DelFB, 4=DelMix, 5=Reverb
     let content = vec![
         Line::from(vec![
-            Span::styled(" Distortion: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(" Dist: ", Style::default().fg(Color::DarkGray)),
             Span::styled(dist_str, param_style(0, dist_color)),
             Span::styled("  Delay: ", Style::default().fg(Color::DarkGray)),
             Span::styled(delay_str, param_style(1, delay_color)),
-            Span::styled("  Reverb: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(reverb_str, param_style(2, reverb_color)),
+            Span::styled(" T:", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{:.0}ms", delay_time), param_style(2, Color::White)),
+            Span::styled(" FB:", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{:.0}%", delay_fb * 100.0), param_style(3, Color::White)),
+            Span::styled(" Mix:", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{:.0}%", delay_mix * 100.0), param_style(4, Color::White)),
         ]),
-        Line::from(""),
+        Line::from(vec![
+            Span::styled(" Reverb: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(reverb_str, param_style(5, reverb_color)),
+        ]),
         Line::from(vec![
             Span::styled(if edit_mode { " </>  " } else { " Enter " }, Style::default().fg(Color::Yellow)),
             Span::styled(if edit_mode { "select " } else { "edit   " }, Style::default().fg(Color::DarkGray)),
             Span::styled(if edit_mode { "^/v" } else { "Tab" }, Style::default().fg(Color::Yellow)),
-            Span::styled(if edit_mode { " toggle/adjust " } else { " next   " }, Style::default().fg(Color::DarkGray)),
+            Span::styled(if edit_mode { " modify " } else { " next   " }, Style::default().fg(Color::DarkGray)),
             Span::styled(if edit_mode { "Esc" } else { "" }, Style::default().fg(Color::Yellow)),
             Span::styled(if edit_mode { " back" } else { "" }, Style::default().fg(Color::DarkGray)),
         ]),
     ];
 
-    let border_color = if edit_mode { Color::Cyan } else { Color::Yellow };
+    let border_color = if edit_mode { Color::Yellow } else { Color::Cyan };
     let modal_widget = Paragraph::new(content).block(
         Block::default()
             .borders(Borders::ALL)
@@ -1313,7 +1322,7 @@ fn draw_modulation_modal(frame: &mut Frame, area: Rect, app: &App, edit_mode: bo
     let fm_color = if fm_enabled { Color::Green } else { Color::Red };
     let fm_str = if fm_enabled { "On" } else { "Off" };
 
-    // Params: 0=Ring on/off, 1=Ring Freq, 2=FM on/off, 3=FM Ratio
+    // Params: 0=Ring on/off, 1=Ring Freq, 2=Ring Mix, 3=FM on/off, 4=FM Ratio
     let content = vec![
         Line::from(vec![
             Span::styled(" Ring Mod: ", Style::default().fg(Color::DarkGray)),
@@ -1321,15 +1330,15 @@ fn draw_modulation_modal(frame: &mut Frame, area: Rect, app: &App, edit_mode: bo
             Span::styled("  Freq: ", Style::default().fg(Color::DarkGray)),
             Span::styled(format!("{:.0} Hz", ring_freq), param_style(1, Color::Cyan)),
             Span::styled("  Mix: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{:.0}%", ring_mix * 100.0), Style::default().fg(Color::White)),
+            Span::styled(format!("{:.0}%", ring_mix * 100.0), param_style(2, Color::White)),
         ]),
         Line::from(vec![
             Span::styled(" FM:       ", Style::default().fg(Color::DarkGray)),
-            Span::styled(fm_str, param_style(2, fm_color)),
+            Span::styled(fm_str, param_style(3, fm_color)),
             Span::styled("  Amount: ", Style::default().fg(Color::DarkGray)),
             Span::styled(format!("{:.2}", fm_amount), Style::default().fg(Color::Cyan)),
             Span::styled("  Ratio: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{:.2}", fm_ratio), param_style(3, Color::White)),
+            Span::styled(format!("{:.2}", fm_ratio), param_style(4, Color::White)),
             Span::styled("  (OSC2→OSC1)", Style::default().fg(Color::DarkGray)),
         ]),
         Line::from(""),
@@ -1360,6 +1369,7 @@ fn draw_effects_ext_modal(frame: &mut Frame, area: Rect, app: &App, edit_mode: b
     let chorus_rate = app.chorus_rate();
     let chorus_depth = app.chorus_depth();
     let chorus_voices = app.chorus_voices();
+    let chorus_mix = app.chorus_mix();
 
     // Phaser
     let phaser_enabled = app.phaser_enabled();
@@ -1371,6 +1381,7 @@ fn draw_effects_ext_modal(frame: &mut Frame, area: Rect, app: &App, edit_mode: b
     let crush_enabled = app.bitcrusher_enabled();
     let crush_bits = app.bitcrusher_bits();
     let crush_rate_div = app.bitcrusher_rate_div();
+    let crush_mix = app.bitcrusher_mix();
 
     // Helper for parameter highlighting
     let param_style = |idx: usize, base_color: Color| -> Style {
@@ -1390,21 +1401,23 @@ fn draw_effects_ext_modal(frame: &mut Frame, area: Rect, app: &App, edit_mode: b
     let crush_color = if crush_enabled { Color::Green } else { Color::Red };
     let crush_str = if crush_enabled { "On" } else { "Off" };
 
-    // Params: 0=Chorus, 1=Phaser, 2=Bitcrusher
+    // Params: 0=Chorus, 1=ChRate, 2=ChDepth, 3=ChVoices, 4=ChMix, 5=Phaser, 6=Bit, 7=BitMix
     let content = vec![
         Line::from(vec![
-            Span::styled(" Chorus:    ", Style::default().fg(Color::DarkGray)),
+            Span::styled(" Chorus: ", Style::default().fg(Color::DarkGray)),
             Span::styled(chorus_str, param_style(0, chorus_color)),
-            Span::styled("  Rate: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{:.1}Hz", chorus_rate), Style::default().fg(Color::Cyan)),
-            Span::styled("  Depth: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{:.1}ms", chorus_depth), Style::default().fg(Color::White)),
-            Span::styled("  Voices: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{}", chorus_voices), Style::default().fg(Color::White)),
+            Span::styled(" R:", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{:.1}Hz", chorus_rate), param_style(1, Color::Cyan)),
+            Span::styled(" D:", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{:.1}ms", chorus_depth), param_style(2, Color::White)),
+            Span::styled(" V:", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{}", chorus_voices), param_style(3, Color::White)),
+            Span::styled(" Mix:", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{:.0}%", chorus_mix * 100.0), param_style(4, Color::White)),
         ]),
         Line::from(vec![
-            Span::styled(" Phaser:    ", Style::default().fg(Color::DarkGray)),
-            Span::styled(phaser_str, param_style(1, phaser_color)),
+            Span::styled(" Phaser: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(phaser_str, param_style(5, phaser_color)),
             Span::styled("  Rate: ", Style::default().fg(Color::DarkGray)),
             Span::styled(format!("{:.1}Hz", phaser_rate), Style::default().fg(Color::Cyan)),
             Span::styled("  Depth: ", Style::default().fg(Color::DarkGray)),
@@ -1413,25 +1426,26 @@ fn draw_effects_ext_modal(frame: &mut Frame, area: Rect, app: &App, edit_mode: b
             Span::styled(format!("{}", phaser_stages), Style::default().fg(Color::White)),
         ]),
         Line::from(vec![
-            Span::styled(" Bitcrusher:", Style::default().fg(Color::DarkGray)),
-            Span::styled(crush_str, param_style(2, crush_color)),
+            Span::styled(" Bitcrush:", Style::default().fg(Color::DarkGray)),
+            Span::styled(crush_str, param_style(6, crush_color)),
             Span::styled("  Bits: ", Style::default().fg(Color::DarkGray)),
             Span::styled(format!("{}", crush_bits), Style::default().fg(Color::Cyan)),
-            Span::styled("  SR Div: ", Style::default().fg(Color::DarkGray)),
+            Span::styled("  SR: ", Style::default().fg(Color::DarkGray)),
             Span::styled(format!("{}x", crush_rate_div), Style::default().fg(Color::White)),
+            Span::styled("  Mix: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{:.0}%", crush_mix * 100.0), param_style(7, Color::White)),
         ]),
-        Line::from(""),
         Line::from(vec![
             Span::styled(if edit_mode { " </>  " } else { " Enter " }, Style::default().fg(Color::Yellow)),
             Span::styled(if edit_mode { "select " } else { "edit   " }, Style::default().fg(Color::DarkGray)),
             Span::styled(if edit_mode { "^/v" } else { "Tab" }, Style::default().fg(Color::Yellow)),
-            Span::styled(if edit_mode { " toggle " } else { " next   " }, Style::default().fg(Color::DarkGray)),
+            Span::styled(if edit_mode { " modify " } else { " next   " }, Style::default().fg(Color::DarkGray)),
             Span::styled(if edit_mode { "Esc" } else { "" }, Style::default().fg(Color::Yellow)),
             Span::styled(if edit_mode { " back" } else { "" }, Style::default().fg(Color::DarkGray)),
         ]),
     ];
 
-    let border_color = if edit_mode { Color::Cyan } else { Color::Yellow };
+    let border_color = if edit_mode { Color::Yellow } else { Color::Cyan };
     let modal_widget = Paragraph::new(content).block(
         Block::default()
             .borders(Borders::ALL)
