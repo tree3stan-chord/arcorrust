@@ -1538,6 +1538,18 @@ impl AudioEngine {
         self.state.read().effects.phaser.stages()
     }
 
+    /// Get phaser mix
+    pub fn phaser_mix(&self) -> f32 {
+        self.state.read().effects.phaser.mix()
+    }
+
+    /// Adjust phaser mix
+    pub fn adjust_phaser_mix(&mut self, delta: f32) {
+        let mut state = self.state.write();
+        let current = state.effects.phaser.mix();
+        state.effects.phaser.set_mix(current + delta);
+    }
+
     // -- Ring Mod --
 
     /// Toggle ring mod

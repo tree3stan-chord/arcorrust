@@ -1376,6 +1376,7 @@ fn draw_effects_ext_modal(frame: &mut Frame, area: Rect, app: &App, edit_mode: b
     let phaser_rate = app.phaser_rate();
     let phaser_depth = app.phaser_depth();
     let phaser_stages = app.phaser_stages();
+    let phaser_mix = app.phaser_mix();
 
     // Bitcrusher
     let crush_enabled = app.bitcrusher_enabled();
@@ -1401,7 +1402,8 @@ fn draw_effects_ext_modal(frame: &mut Frame, area: Rect, app: &App, edit_mode: b
     let crush_color = if crush_enabled { Color::Green } else { Color::Red };
     let crush_str = if crush_enabled { "On" } else { "Off" };
 
-    // Params: 0=Chorus, 1=ChRate, 2=ChDepth, 3=ChVoices, 4=ChMix, 5=Phaser, 6=Bit, 7=BitMix
+    // Params: 0=Chorus, 1=ChRate, 2=ChDepth, 3=ChVoices, 4=ChMix,
+    //         5=Phaser, 6=PhRate, 7=PhDepth, 8=PhMix, 9=Bit, 10=BitMix
     let content = vec![
         Line::from(vec![
             Span::styled(" Chorus: ", Style::default().fg(Color::DarkGray)),
@@ -1418,22 +1420,24 @@ fn draw_effects_ext_modal(frame: &mut Frame, area: Rect, app: &App, edit_mode: b
         Line::from(vec![
             Span::styled(" Phaser: ", Style::default().fg(Color::DarkGray)),
             Span::styled(phaser_str, param_style(5, phaser_color)),
-            Span::styled("  Rate: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{:.1}Hz", phaser_rate), Style::default().fg(Color::Cyan)),
-            Span::styled("  Depth: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{:.0}%", phaser_depth * 100.0), Style::default().fg(Color::White)),
-            Span::styled("  Stages: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(" R:", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{:.1}Hz", phaser_rate), param_style(6, Color::Cyan)),
+            Span::styled(" D:", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{:.0}%", phaser_depth * 100.0), param_style(7, Color::White)),
+            Span::styled(" Mix:", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{:.0}%", phaser_mix * 100.0), param_style(8, Color::White)),
+            Span::styled("  St:", Style::default().fg(Color::DarkGray)),
             Span::styled(format!("{}", phaser_stages), Style::default().fg(Color::White)),
         ]),
         Line::from(vec![
             Span::styled(" Bitcrush:", Style::default().fg(Color::DarkGray)),
-            Span::styled(crush_str, param_style(6, crush_color)),
+            Span::styled(crush_str, param_style(9, crush_color)),
             Span::styled("  Bits: ", Style::default().fg(Color::DarkGray)),
             Span::styled(format!("{}", crush_bits), Style::default().fg(Color::Cyan)),
             Span::styled("  SR: ", Style::default().fg(Color::DarkGray)),
             Span::styled(format!("{}x", crush_rate_div), Style::default().fg(Color::White)),
             Span::styled("  Mix: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{:.0}%", crush_mix * 100.0), param_style(7, Color::White)),
+            Span::styled(format!("{:.0}%", crush_mix * 100.0), param_style(10, Color::White)),
         ]),
         Line::from(vec![
             Span::styled(if edit_mode { " </>  " } else { " Enter " }, Style::default().fg(Color::Yellow)),

@@ -805,6 +805,26 @@ impl App {
         self.audio_engine.phaser_stages()
     }
 
+    /// Adjust phaser rate
+    pub fn adjust_phaser_rate(&mut self, delta: f32) {
+        self.audio_engine.adjust_phaser_rate(delta);
+    }
+
+    /// Adjust phaser depth
+    pub fn adjust_phaser_depth(&mut self, delta: f32) {
+        self.audio_engine.adjust_phaser_depth(delta);
+    }
+
+    /// Get phaser mix
+    pub fn phaser_mix(&self) -> f32 {
+        self.audio_engine.phaser_mix()
+    }
+
+    /// Adjust phaser mix
+    pub fn adjust_phaser_mix(&mut self, delta: f32) {
+        self.audio_engine.adjust_phaser_mix(delta);
+    }
+
     // -- Ring Mod --
 
     /// Toggle ring mod
@@ -1092,7 +1112,7 @@ impl App {
             ModalPanel::EffectsBasic => 6,   // Dist, Delay, DelTime, DelFB, DelMix, Reverb
             ModalPanel::LFO => 4,            // On/Off, Wave, Rate, Depth
             ModalPanel::Modulation => 5,     // Ring, RingFreq, RingMix, FM, FMRatio
-            ModalPanel::EffectsExt => 8,     // Chorus, ChRate, ChDepth, ChVoices, ChMix, Phaser, Bit, BitMix
+            ModalPanel::EffectsExt => 11,    // Chorus, ChRate, ChDepth, ChVoices, ChMix, Phaser, PhRate, PhDepth, PhMix, Bit, BitMix
             ModalPanel::Performance => 6,    // Porta, Noise, NoiseType, Arp, Pattern, Octaves
         }
     }
@@ -1172,7 +1192,8 @@ impl App {
                 }
             }
             ModalPanel::EffectsExt => {
-                // Params: 0=Chorus, 1=ChRate, 2=ChDepth, 3=ChVoices, 4=ChMix, 5=Phaser, 6=Bit, 7=BitMix
+                // Params: 0=Chorus, 1=ChRate, 2=ChDepth, 3=ChVoices, 4=ChMix,
+                //         5=Phaser, 6=PhRate, 7=PhDepth, 8=PhMix, 9=Bit, 10=BitMix
                 match self.param_index {
                     0 => self.toggle_chorus(),
                     1 => self.adjust_chorus_rate(if increase { 0.2 } else { -0.2 }),
@@ -1180,8 +1201,11 @@ impl App {
                     3 => self.adjust_chorus_voices(if increase { 1 } else { -1 }),
                     4 => self.adjust_chorus_mix(if increase { 0.1 } else { -0.1 }),
                     5 => self.toggle_phaser(),
-                    6 => self.toggle_bitcrusher(),
-                    7 => self.adjust_bitcrusher_mix(if increase { 0.1 } else { -0.1 }),
+                    6 => self.adjust_phaser_rate(if increase { 0.1 } else { -0.1 }),
+                    7 => self.adjust_phaser_depth(if increase { 0.1 } else { -0.1 }),
+                    8 => self.adjust_phaser_mix(if increase { 0.1 } else { -0.1 }),
+                    9 => self.toggle_bitcrusher(),
+                    10 => self.adjust_bitcrusher_mix(if increase { 0.1 } else { -0.1 }),
                     _ => {}
                 }
             }
