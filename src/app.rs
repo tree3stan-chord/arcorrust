@@ -476,6 +476,90 @@ impl App {
         self.audio_engine.adjust_filter_env_amount(delta);
     }
 
+    // === Amplitude Envelope ADSR controls ===
+
+    /// Get amplitude attack time in seconds
+    pub fn amp_attack(&self) -> f32 {
+        self.audio_engine.amp_attack()
+    }
+
+    /// Adjust amplitude attack time
+    pub fn adjust_amp_attack(&mut self, delta: f32) {
+        self.audio_engine.adjust_amp_attack(delta);
+    }
+
+    /// Get amplitude decay time in seconds
+    pub fn amp_decay(&self) -> f32 {
+        self.audio_engine.amp_decay()
+    }
+
+    /// Adjust amplitude decay time
+    pub fn adjust_amp_decay(&mut self, delta: f32) {
+        self.audio_engine.adjust_amp_decay(delta);
+    }
+
+    /// Get amplitude sustain level (0.0 - 1.0)
+    pub fn amp_sustain(&self) -> f32 {
+        self.audio_engine.amp_sustain()
+    }
+
+    /// Adjust amplitude sustain level
+    pub fn adjust_amp_sustain(&mut self, delta: f32) {
+        self.audio_engine.adjust_amp_sustain(delta);
+    }
+
+    /// Get amplitude release time in seconds
+    pub fn amp_release(&self) -> f32 {
+        self.audio_engine.amp_release()
+    }
+
+    /// Adjust amplitude release time
+    pub fn adjust_amp_release(&mut self, delta: f32) {
+        self.audio_engine.adjust_amp_release(delta);
+    }
+
+    // === Filter Envelope ADSR controls ===
+
+    /// Get filter attack time in seconds
+    pub fn filter_attack(&self) -> f32 {
+        self.audio_engine.filter_attack()
+    }
+
+    /// Adjust filter attack time
+    pub fn adjust_filter_attack(&mut self, delta: f32) {
+        self.audio_engine.adjust_filter_attack(delta);
+    }
+
+    /// Get filter decay time in seconds
+    pub fn filter_decay(&self) -> f32 {
+        self.audio_engine.filter_decay()
+    }
+
+    /// Adjust filter decay time
+    pub fn adjust_filter_decay(&mut self, delta: f32) {
+        self.audio_engine.adjust_filter_decay(delta);
+    }
+
+    /// Get filter sustain level (0.0 - 1.0)
+    pub fn filter_sustain(&self) -> f32 {
+        self.audio_engine.filter_sustain()
+    }
+
+    /// Adjust filter sustain level
+    pub fn adjust_filter_sustain(&mut self, delta: f32) {
+        self.audio_engine.adjust_filter_sustain(delta);
+    }
+
+    /// Get filter release time in seconds
+    pub fn filter_release(&self) -> f32 {
+        self.audio_engine.filter_release()
+    }
+
+    /// Adjust filter release time
+    pub fn adjust_filter_release(&mut self, delta: f32) {
+        self.audio_engine.adjust_filter_release(delta);
+    }
+
     // === Effects controls ===
 
     // -- Distortion --
