@@ -30,6 +30,8 @@ pub enum ModalPanel {
     EffectsExt,
     /// Performance settings (Portamento, Arpeggiator, Noise)
     Performance,
+    /// Envelope ADSR settings (Amplitude and Filter)
+    Envelope,
 }
 
 impl ModalPanel {
@@ -37,7 +39,8 @@ impl ModalPanel {
     pub fn next(&self) -> Self {
         match self {
             ModalPanel::Oscillator => ModalPanel::Filter,
-            ModalPanel::Filter => ModalPanel::EffectsBasic,
+            ModalPanel::Filter => ModalPanel::Envelope,
+            ModalPanel::Envelope => ModalPanel::EffectsBasic,
             ModalPanel::EffectsBasic => ModalPanel::LFO,
             ModalPanel::LFO => ModalPanel::Modulation,
             ModalPanel::Modulation => ModalPanel::EffectsExt,
@@ -51,7 +54,8 @@ impl ModalPanel {
         match self {
             ModalPanel::Oscillator => ModalPanel::Performance,
             ModalPanel::Filter => ModalPanel::Oscillator,
-            ModalPanel::EffectsBasic => ModalPanel::Filter,
+            ModalPanel::Envelope => ModalPanel::Filter,
+            ModalPanel::EffectsBasic => ModalPanel::Envelope,
             ModalPanel::LFO => ModalPanel::EffectsBasic,
             ModalPanel::Modulation => ModalPanel::LFO,
             ModalPanel::EffectsExt => ModalPanel::Modulation,
@@ -64,6 +68,7 @@ impl ModalPanel {
         match self {
             ModalPanel::Oscillator => "Oscillator",
             ModalPanel::Filter => "Filter",
+            ModalPanel::Envelope => "Envelope",
             ModalPanel::EffectsBasic => "Effects",
             ModalPanel::LFO => "LFO",
             ModalPanel::Modulation => "Modulation",
@@ -84,6 +89,7 @@ impl ModalPanel {
         &[
             ModalPanel::Oscillator,
             ModalPanel::Filter,
+            ModalPanel::Envelope,
             ModalPanel::EffectsBasic,
             ModalPanel::LFO,
             ModalPanel::Modulation,
@@ -1028,6 +1034,7 @@ impl App {
         match self.modal_panel {
             ModalPanel::Oscillator => 4,    // Wave1, Osc2, Wave2, Mix
             ModalPanel::Filter => 5,         // On/Off, Type, Cutoff, Resonance, EnvAmt
+            ModalPanel::Envelope => 8,       // AmpA, AmpD, AmpS, AmpR, FltA, FltD, FltS, FltR
             ModalPanel::EffectsBasic => 3,   // Distortion, Delay, Reverb
             ModalPanel::LFO => 4,            // On/Off, Wave, Rate, Depth
             ModalPanel::Modulation => 4,     // Ring, RingFreq, FM, FMRatio
@@ -1124,6 +1131,21 @@ impl App {
                     3 => self.toggle_arpeggiator(),
                     4 => self.next_arpeggiator_pattern(),
                     5 => self.adjust_arpeggiator_octaves(if increase { 1 } else { -1 }),
+                    _ => {}
+                }
+            }
+            ModalPanel::Envelope => {
+                // Params: 0=AmpA, 1=AmpD, 2=AmpS, 3=AmpR, 4=FltA, 5=FltD, 6=FltS, 7=FltR
+                let delta = if increase { 0.05 } else { -0.05 };
+                match self.param_index {
+                    0 => self.adjust_amp_attack(delta),
+                    1 => self.adjust_amp_decay(delta),
+                    2 => self.adjust_amp_sustain(delta),
+                    3 => self.adjust_amp_release(delta),
+                    4 => self.adjust_filter_attack(delta),
+                    5 => self.adjust_filter_decay(delta),
+                    6 => self.adjust_filter_sustain(delta),
+                    7 => self.adjust_filter_release(delta),
                     _ => {}
                 }
             }

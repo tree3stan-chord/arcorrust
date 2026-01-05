@@ -5,7 +5,7 @@ pub mod widgets;
 use crate::app::{App, LayoutMode, ModalPanel, VizMode};
 use crate::input::keyboard::note_name;
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Gauge, Paragraph},
@@ -751,21 +751,54 @@ fn draw_effects_panel(frame: &mut Frame, area: Rect, app: &App) {
 fn draw_modal_row(frame: &mut Frame, area: Rect, app: &App) {
     let active_modal = app.modal_panel();
 
-    // Split into 4 equal columns
+    // Split into 5 equal columns
     let panels = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Ratio(1, 4),
-            Constraint::Ratio(1, 4),
-            Constraint::Ratio(1, 4),
-            Constraint::Ratio(1, 4),
+            Constraint::Ratio(1, 5),
+            Constraint::Ratio(1, 5),
+            Constraint::Ratio(1, 5),
+            Constraint::Ratio(1, 5),
+            Constraint::Ratio(1, 5),
         ])
         .split(area);
 
-    draw_compact_lfo(frame, panels[0], app, active_modal == ModalPanel::LFO);
-    draw_compact_modulation(frame, panels[1], app, active_modal == ModalPanel::Modulation);
-    draw_compact_effects(frame, panels[2], app, active_modal == ModalPanel::EffectsExt);
-    draw_compact_performance(frame, panels[3], app, active_modal == ModalPanel::Performance);
+    draw_compact_envelope(frame, panels[0], app, active_modal == ModalPanel::Envelope);
+    draw_compact_lfo(frame, panels[1], app, active_modal == ModalPanel::LFO);
+    draw_compact_modulation(frame, panels[2], app, active_modal == ModalPanel::Modulation);
+    draw_compact_effects(frame, panels[3], app, active_modal == ModalPanel::EffectsExt);
+    draw_compact_performance(frame, panels[4], app, active_modal == ModalPanel::Performance);
+}
+
+fn draw_compact_envelope(frame: &mut Frame, area: Rect, app: &App, is_active: bool) {
+    let amp_a = app.amp_attack();
+    let amp_s = app.amp_sustain();
+
+    // Show compact ADSR summary: A and S are most distinctive
+    let content = Line::from(vec![
+        Span::styled("A:", Style::default().fg(Color::DarkGray)),
+        Span::styled(format!("{:.0}ms", amp_a * 1000.0), Style::default().fg(Color::Cyan)),
+        Span::styled(" S:", Style::default().fg(Color::DarkGray)),
+        Span::styled(format!("{:.0}%", amp_s * 100.0), Style::default().fg(Color::Cyan)),
+    ]);
+
+    let border_color = if is_active { Color::Cyan } else { Color::DarkGray };
+    let title_style = if is_active {
+        Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+
+    let widget = Paragraph::new(content)
+        .alignment(Alignment::Center)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(border_color))
+                .title(" Env ")
+                .title_style(title_style),
+        );
+    frame.render_widget(widget, area);
 }
 
 fn draw_compact_lfo(frame: &mut Frame, area: Rect, app: &App, is_active: bool) {
@@ -919,6 +952,7 @@ fn draw_modal(frame: &mut Frame, area: Rect, app: &App, modal: ModalPanel) {
     match modal {
         ModalPanel::Oscillator => draw_oscillator_modal(frame, area, app, edit_mode, param_idx),
         ModalPanel::Filter => draw_filter_modal(frame, area, app, edit_mode, param_idx),
+        ModalPanel::Envelope => draw_envelope_modal(frame, area, app, edit_mode, param_idx),
         ModalPanel::EffectsBasic => draw_effects_basic_modal(frame, area, app, edit_mode, param_idx),
         ModalPanel::LFO => draw_lfo_modal(frame, area, app, edit_mode, param_idx),
         ModalPanel::Modulation => draw_modulation_modal(frame, area, app, edit_mode, param_idx),
@@ -1041,6 +1075,83 @@ fn draw_filter_modal(frame: &mut Frame, area: Rect, app: &App, edit_mode: bool, 
             .borders(Borders::ALL)
             .border_style(Style::default().fg(border_color))
             .title(if edit_mode { " Filter [EDIT] " } else { " Filter " })
+            .title_style(Style::default().fg(border_color).add_modifier(Modifier::BOLD)),
+    );
+    frame.render_widget(modal_widget, area);
+}
+
+fn draw_envelope_modal(frame: &mut Frame, area: Rect, app: &App, edit_mode: bool, param_idx: usize) {
+    // Amplitude ADSR
+    let amp_a = app.amp_attack();
+    let amp_d = app.amp_decay();
+    let amp_s = app.amp_sustain();
+    let amp_r = app.amp_release();
+
+    // Filter ADSR
+    let flt_a = app.filter_attack();
+    let flt_d = app.filter_decay();
+    let flt_s = app.filter_sustain();
+    let flt_r = app.filter_release();
+
+    // Helper for parameter highlighting
+    let param_style = |idx: usize, base_color: Color| -> Style {
+        if edit_mode && param_idx == idx {
+            Style::default().fg(Color::Black).bg(base_color).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(base_color)
+        }
+    };
+
+    // Format time values nicely
+    let fmt_time = |t: f32| -> String {
+        if t >= 1.0 {
+            format!("{:.2}s", t)
+        } else {
+            format!("{:.0}ms", t * 1000.0)
+        }
+    };
+
+    // Params: 0=AmpA, 1=AmpD, 2=AmpS, 3=AmpR, 4=FltA, 5=FltD, 6=FltS, 7=FltR
+    let content = vec![
+        Line::from(vec![
+            Span::styled(" Amp ADSR: ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::styled("A:", Style::default().fg(Color::DarkGray)),
+            Span::styled(fmt_time(amp_a), param_style(0, Color::White)),
+            Span::styled(" D:", Style::default().fg(Color::DarkGray)),
+            Span::styled(fmt_time(amp_d), param_style(1, Color::White)),
+            Span::styled(" S:", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{:.0}%", amp_s * 100.0), param_style(2, Color::White)),
+            Span::styled(" R:", Style::default().fg(Color::DarkGray)),
+            Span::styled(fmt_time(amp_r), param_style(3, Color::White)),
+        ]),
+        Line::from(vec![
+            Span::styled(" Flt ADSR: ", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
+            Span::styled("A:", Style::default().fg(Color::DarkGray)),
+            Span::styled(fmt_time(flt_a), param_style(4, Color::White)),
+            Span::styled(" D:", Style::default().fg(Color::DarkGray)),
+            Span::styled(fmt_time(flt_d), param_style(5, Color::White)),
+            Span::styled(" S:", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{:.0}%", flt_s * 100.0), param_style(6, Color::White)),
+            Span::styled(" R:", Style::default().fg(Color::DarkGray)),
+            Span::styled(fmt_time(flt_r), param_style(7, Color::White)),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled(if edit_mode { " </>  " } else { " Enter " }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { "select " } else { "edit   " }, Style::default().fg(Color::DarkGray)),
+            Span::styled(if edit_mode { "^/v" } else { "Tab" }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { " modify " } else { " next   " }, Style::default().fg(Color::DarkGray)),
+            Span::styled(if edit_mode { "Esc" } else { "" }, Style::default().fg(Color::Yellow)),
+            Span::styled(if edit_mode { " back" } else { "" }, Style::default().fg(Color::DarkGray)),
+        ]),
+    ];
+
+    let border_color = if edit_mode { Color::Yellow } else { Color::Cyan };
+    let modal_widget = Paragraph::new(content).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(border_color))
+            .title(if edit_mode { " Envelope [EDIT] " } else { " Envelope " })
             .title_style(Style::default().fg(border_color).add_modifier(Modifier::BOLD)),
     );
     frame.render_widget(modal_widget, area);
