@@ -1538,6 +1538,28 @@ impl AudioEngine {
         self.state.read().effects.phaser.stages()
     }
 
+    /// Adjust phaser stages (cycles through 4, 6, 8, 12)
+    pub fn adjust_phaser_stages(&mut self, increase: bool) {
+        let mut state = self.state.write();
+        let current = state.effects.phaser.stages();
+        let new_stages = if increase {
+            match current {
+                4 => 6,
+                6 => 8,
+                8 => 12,
+                _ => 4,
+            }
+        } else {
+            match current {
+                12 => 8,
+                8 => 6,
+                6 => 4,
+                _ => 12,
+            }
+        };
+        state.effects.phaser.set_stages(new_stages);
+    }
+
     /// Get phaser mix
     pub fn phaser_mix(&self) -> f32 {
         self.state.read().effects.phaser.mix()

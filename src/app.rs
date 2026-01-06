@@ -805,6 +805,11 @@ impl App {
         self.audio_engine.phaser_stages()
     }
 
+    /// Adjust phaser stages (cycles through 4, 6, 8, 12)
+    pub fn adjust_phaser_stages(&mut self, increase: bool) {
+        self.audio_engine.adjust_phaser_stages(increase);
+    }
+
     /// Adjust phaser rate
     pub fn adjust_phaser_rate(&mut self, delta: f32) {
         self.audio_engine.adjust_phaser_rate(delta);
@@ -1112,7 +1117,7 @@ impl App {
             ModalPanel::EffectsBasic => 6,   // Dist, Delay, DelTime, DelFB, DelMix, Reverb
             ModalPanel::LFO => 4,            // On/Off, Wave, Rate, Depth
             ModalPanel::Modulation => 5,     // Ring, RingFreq, RingMix, FM, FMRatio
-            ModalPanel::EffectsExt => 11,    // Chorus, ChRate, ChDepth, ChVoices, ChMix, Phaser, PhRate, PhDepth, PhMix, Bit, BitMix
+            ModalPanel::EffectsExt => 12,    // Chorus, ChRate, ChDepth, ChVoices, ChMix, Phaser, PhRate, PhDepth, PhMix, PhStages, Bit, BitMix
             ModalPanel::Performance => 6,    // Porta, Noise, NoiseType, Arp, Pattern, Octaves
         }
     }
@@ -1193,7 +1198,7 @@ impl App {
             }
             ModalPanel::EffectsExt => {
                 // Params: 0=Chorus, 1=ChRate, 2=ChDepth, 3=ChVoices, 4=ChMix,
-                //         5=Phaser, 6=PhRate, 7=PhDepth, 8=PhMix, 9=Bit, 10=BitMix
+                //         5=Phaser, 6=PhRate, 7=PhDepth, 8=PhMix, 9=PhStages, 10=Bit, 11=BitMix
                 match self.param_index {
                     0 => self.toggle_chorus(),
                     1 => self.adjust_chorus_rate(if increase { 0.2 } else { -0.2 }),
@@ -1204,8 +1209,9 @@ impl App {
                     6 => self.adjust_phaser_rate(if increase { 0.1 } else { -0.1 }),
                     7 => self.adjust_phaser_depth(if increase { 0.1 } else { -0.1 }),
                     8 => self.adjust_phaser_mix(if increase { 0.1 } else { -0.1 }),
-                    9 => self.toggle_bitcrusher(),
-                    10 => self.adjust_bitcrusher_mix(if increase { 0.1 } else { -0.1 }),
+                    9 => self.adjust_phaser_stages(increase),
+                    10 => self.toggle_bitcrusher(),
+                    11 => self.adjust_bitcrusher_mix(if increase { 0.1 } else { -0.1 }),
                     _ => {}
                 }
             }

@@ -1403,7 +1403,7 @@ fn draw_effects_ext_modal(frame: &mut Frame, area: Rect, app: &App, edit_mode: b
     let crush_str = if crush_enabled { "On" } else { "Off" };
 
     // Params: 0=Chorus, 1=ChRate, 2=ChDepth, 3=ChVoices, 4=ChMix,
-    //         5=Phaser, 6=PhRate, 7=PhDepth, 8=PhMix, 9=Bit, 10=BitMix
+    //         5=Phaser, 6=PhRate, 7=PhDepth, 8=PhMix, 9=PhStages, 10=Bit, 11=BitMix
     let content = vec![
         Line::from(vec![
             Span::styled(" Chorus: ", Style::default().fg(Color::DarkGray)),
@@ -1426,18 +1426,18 @@ fn draw_effects_ext_modal(frame: &mut Frame, area: Rect, app: &App, edit_mode: b
             Span::styled(format!("{:.0}%", phaser_depth * 100.0), param_style(7, Color::White)),
             Span::styled(" Mix:", Style::default().fg(Color::DarkGray)),
             Span::styled(format!("{:.0}%", phaser_mix * 100.0), param_style(8, Color::White)),
-            Span::styled("  St:", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{}", phaser_stages), Style::default().fg(Color::White)),
+            Span::styled(" St:", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{}", phaser_stages), param_style(9, Color::White)),
         ]),
         Line::from(vec![
             Span::styled(" Bitcrush:", Style::default().fg(Color::DarkGray)),
-            Span::styled(crush_str, param_style(9, crush_color)),
+            Span::styled(crush_str, param_style(10, crush_color)),
             Span::styled("  Bits: ", Style::default().fg(Color::DarkGray)),
             Span::styled(format!("{}", crush_bits), Style::default().fg(Color::Cyan)),
             Span::styled("  SR: ", Style::default().fg(Color::DarkGray)),
             Span::styled(format!("{}x", crush_rate_div), Style::default().fg(Color::White)),
             Span::styled("  Mix: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{:.0}%", crush_mix * 100.0), param_style(10, Color::White)),
+            Span::styled(format!("{:.0}%", crush_mix * 100.0), param_style(11, Color::White)),
         ]),
         Line::from(vec![
             Span::styled(if edit_mode { " </>  " } else { " Enter " }, Style::default().fg(Color::Yellow)),
