@@ -350,6 +350,8 @@ impl AudioEngine {
         let lfo_has_volume = state.lfo.has_destination(LFODestination::Volume);
         let lfo_has_osc2_pitch = state.lfo.has_destination(LFODestination::Osc2Pitch);
         let lfo_has_pwm = state.lfo.has_destination(LFODestination::PulseWidth);
+        let lfo_has_pan = state.lfo.has_destination(LFODestination::Pan);
+        let lfo_depth = state.lfo.depth;
 
         // PWM settings
         let base_pulse_width = state.pulse_width;
@@ -555,16 +557,39 @@ impl AudioEngine {
             sample *= volume;
             sample = Self::soft_clip(sample);
 
-            // Output to all channels
-            for ch in frame.iter_mut() {
-                *ch = sample;
+            // Calculate stereo pan from LFO if enabled
+            // pan ranges from -1.0 (full left) to 1.0 (full right)
+            let pan = if lfo_enabled && lfo_has_pan {
+                lfo_value * lfo_depth  // Use LFO value scaled by depth
+            } else {
+                0.0  // Center
+            };
+
+            // Calculate stereo gains using constant-power panning
+            // This keeps perceived loudness consistent as sound moves left/right
+            let pan_angle = (pan + 1.0) * 0.25 * std::f32::consts::PI; // 0 to PI/2
+            let left_gain = pan_angle.cos();
+            let right_gain = pan_angle.sin();
+
+            let left_sample = sample * left_gain;
+            let right_sample = sample * right_gain;
+
+            // Output to channels (assuming stereo: 0=left, 1=right)
+            if frame.len() >= 2 {
+                frame[0] = left_sample;
+                frame[1] = right_sample;
+            } else {
+                // Mono fallback
+                for ch in frame.iter_mut() {
+                    *ch = sample;
+                }
             }
 
             // Record sample if recording is enabled
             if state.recording_enabled && state.recording_buffer.len() < state.recording_max_samples {
-                // Record stereo (duplicate mono for now)
-                state.recording_buffer.push(sample);
-                state.recording_buffer.push(sample);
+                // Record stereo
+                state.recording_buffer.push(left_sample);
+                state.recording_buffer.push(right_sample);
             }
 
             // Write to visualization ring buffer (always active)
