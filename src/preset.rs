@@ -528,6 +528,35 @@ impl PresetManager {
         };
         brass.save(&dir.join("brass_stab.json"))?;
 
+        // Organ tone - full harmonic drawbar organ, direct and unwavering
+        let organ = Preset {
+            name: "Organ Tone".to_string(),
+            description: "Warm full-body organ with immediate response".to_string(),
+            osc1_waveform: WaveformSer::Square,
+            osc2_enabled: true,
+            osc2_waveform: WaveformSer::Square,
+            osc2_detune: 0.0,
+            osc2_pitch: 12,
+            osc_mix: 0.35,
+            filter_enabled: true,
+            filter_type: FilterTypeSer::Lowpass,
+            filter_cutoff: 3500.0,
+            filter_resonance: 0.5,
+            filter_env_amount: 0.0,
+            amp_attack: 0.003,
+            amp_decay: 0.05,
+            amp_sustain: 1.0,
+            amp_release: 0.08,
+            distortion_enabled: true,
+            distortion_type: DistortionTypeSer::SoftClip,
+            distortion_drive: 1.8,
+            reverb_enabled: true,
+            reverb_decay: 0.3,
+            reverb_mix: 0.15,
+            ..Default::default()
+        };
+        organ.save(&dir.join("organ_tone.json"))?;
+
         Ok(())
     }
 }
