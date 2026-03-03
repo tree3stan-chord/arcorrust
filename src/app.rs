@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 /// How long to hold a note before auto-release (for terminals without key release support)
-const NOTE_AUTO_RELEASE_MS: u128 = 200;
+const NOTE_AUTO_RELEASE_MS: u128 = 3000;
 
 /// Modal panel for extended controls (always one active)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -193,11 +193,13 @@ pub struct App {
     arpeggiator: Arpeggiator,
     /// Last tick time for delta calculation
     last_tick_time: Instant,
+    /// Whether the terminal supports key release events
+    has_key_release: bool,
 }
 
 impl App {
     /// Create a new application instance
-    pub fn new() -> Result<Self> {
+    pub fn new(has_key_release: bool) -> Result<Self> {
         let audio_engine = AudioEngine::new()?;
         let preset_manager = PresetManager::new()?;
         let sample_rate = audio_engine.sample_rate();
@@ -219,6 +221,7 @@ impl App {
             modal_panel: ModalPanel::default(),
             arpeggiator: Arpeggiator::new(sample_rate),
             last_tick_time: Instant::now(),
+            has_key_release,
         };
 
         // Load first preset if available
@@ -263,8 +266,8 @@ impl App {
 
         // Auto-release notes that have been held too long
         // (fallback for terminals that don't support key release events)
-        // Only do this when arpeggiator is disabled
-        if !self.arpeggiator.enabled() {
+        // Skipped entirely when the terminal reports key release events
+        if !self.has_key_release && !self.arpeggiator.enabled() {
             let notes_to_release: Vec<u8> = self
                 .note_press_times
                 .iter()

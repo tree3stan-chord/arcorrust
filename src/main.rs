@@ -44,7 +44,7 @@ fn main() -> Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     // Create app and run
-    let mut app = App::new()?;
+    let mut app = App::new(keyboard_enhancement_supported)?;
     let result = run_app(&mut terminal, &mut app);
 
     // Restore terminal
