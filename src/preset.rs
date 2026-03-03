@@ -498,6 +498,36 @@ impl PresetManager {
         };
         ambient.save(&dir.join("ambient_texture.json"))?;
 
+        // Brass stab - punchy dual-saw brass with filter bite
+        let brass = Preset {
+            name: "Brass Stab".to_string(),
+            description: "Thick detuned brass with filter punch".to_string(),
+            osc1_waveform: WaveformSer::Sawtooth,
+            osc2_enabled: true,
+            osc2_waveform: WaveformSer::Sawtooth,
+            osc2_detune: 12.0,
+            osc2_pitch: 0,
+            osc_mix: 0.5,
+            filter_enabled: true,
+            filter_type: FilterTypeSer::Lowpass,
+            filter_cutoff: 1200.0,
+            filter_resonance: 2.5,
+            filter_env_amount: 0.7,
+            filter_attack: 0.01,
+            filter_decay: 0.25,
+            filter_sustain: 0.4,
+            filter_release: 0.15,
+            amp_attack: 0.008,
+            amp_decay: 0.15,
+            amp_sustain: 0.85,
+            amp_release: 0.15,
+            distortion_enabled: true,
+            distortion_type: DistortionTypeSer::Tanh,
+            distortion_drive: 1.5,
+            ..Default::default()
+        };
+        brass.save(&dir.join("brass_stab.json"))?;
+
         Ok(())
     }
 }
