@@ -557,6 +557,40 @@ impl PresetManager {
         };
         organ.save(&dir.join("organ_tone.json"))?;
 
+        // Thick lead - heavy detuned saw+square for a fat center-stage lead
+        let thick_lead = Preset {
+            name: "Thick Lead".to_string(),
+            description: "Heavy saturated lead with wide detune".to_string(),
+            osc1_waveform: WaveformSer::Sawtooth,
+            osc2_enabled: true,
+            osc2_waveform: WaveformSer::Square,
+            osc2_detune: 18.0,
+            osc2_pitch: 0,
+            osc_mix: 0.45,
+            filter_enabled: true,
+            filter_type: FilterTypeSer::Lowpass,
+            filter_cutoff: 2400.0,
+            filter_resonance: 2.0,
+            filter_env_amount: 0.4,
+            filter_attack: 0.005,
+            filter_decay: 0.2,
+            filter_sustain: 0.6,
+            filter_release: 0.25,
+            amp_attack: 0.005,
+            amp_decay: 0.1,
+            amp_sustain: 0.9,
+            amp_release: 0.2,
+            distortion_enabled: true,
+            distortion_type: DistortionTypeSer::Tanh,
+            distortion_drive: 2.5,
+            delay_enabled: true,
+            delay_time_ms: 300.0,
+            delay_feedback: 0.2,
+            delay_mix: 0.15,
+            ..Default::default()
+        };
+        thick_lead.save(&dir.join("thick_lead.json"))?;
+
         Ok(())
     }
 }
