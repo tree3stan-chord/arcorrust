@@ -19,6 +19,13 @@ Terminal-based virtual instrument playground with real-time synthesis and built-
 yay -S arco
 ```
 
+### Homebrew (MacOS & Linux)
+
+```bash
+brew tap tree3stan-chord/tap  
+brew install arco  
+```
+
 ### From source
 
 ```bash
@@ -28,7 +35,7 @@ cargo build --release
 ## Usage
 
 ```bash
-arcorrust
+arco
 ```
 
 ## License
